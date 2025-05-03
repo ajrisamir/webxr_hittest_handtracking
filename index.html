@@ -13,8 +13,24 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
       body { margin: 0; overflow: hidden; touch-action: none; }
-      video { position: absolute; top: 0; left: 0; display: none; }
-      canvas#output_canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+      video { 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100vw; 
+        height: 100vh; 
+        object-fit: cover;
+        display: none; 
+      }
+      canvas#output_canvas { 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100vw; 
+        height: 100vh;
+        pointer-events: none;
+        z-index: 999;
+      }
     </style>
   </head>
   <body>
@@ -31,6 +47,7 @@
         <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
       </a-assets>
     </a-scene>
+    <script src="./hand-tracking.js"></script>
     <script>
       var scene = AFRAME.scenes[0];
       var currentModelIndex = 0;
@@ -120,7 +137,13 @@ function smoothLandmarks(landmarks) {
 function onResults(results) {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.drawImage(results.image, 0, 0);
+    
+    // Draw video with correct size
+    canvasCtx.drawImage(
+        results.image,
+        0, 0, results.image.width, results.image.height,
+        0, 0, canvasElement.width, canvasElement.height
+    );
 
     if (results.multiHandLandmarks) {
         for (const landmarks of results.multiHandLandmarks) {
@@ -158,10 +181,18 @@ function onResults(results) {
 function adjustVideoCanvasSize() {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    videoElement.width = width;
-    videoElement.height = height;
+    
+    // Set canvas size
+    canvasElement.style.width = width + 'px';
+    canvasElement.style.height = height + 'px';
     canvasElement.width = width;
     canvasElement.height = height;
+    
+    // Set video size
+    videoElement.style.width = width + 'px';
+    videoElement.style.height = height + 'px';
+    videoElement.width = width;
+    videoElement.height = height;
 }
 
 window.addEventListener('resize', adjustVideoCanvasSize);
@@ -196,3 +227,5 @@ camera.start().catch(error => {
     </script>
   </body>
 </html>
+
+
