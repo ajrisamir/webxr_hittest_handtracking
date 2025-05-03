@@ -20,7 +20,7 @@
         width: 100vw; 
         height: 100vh; 
         object-fit: cover;
-        display: none; 
+        z-index: -1; /* Change from display: none to z-index: -1 */
       }
       canvas#output_canvas { 
         position: fixed; 
@@ -29,14 +29,17 @@
         width: 100vw; 
         height: 100vh;
         pointer-events: none;
-        z-index: 999;
+        z-index: 1; /* Lower z-index to be below AR content */
+      }
+      .a-canvas {
+        z-index: 2; /* Ensure AR content is on top */
       }
     </style>
   </head>
   <body>
     <video id="video" autoplay playsinline></video>
     <canvas id="output_canvas"></canvas>
-    <a-scene hit-test>
+    <a-scene hit-test embedded>  <!-- Add embedded attribute -->
       <a-assets timeout="10000">
         <a-asset-item id="model1" src="./model1.glb"></a-asset-item>
         <a-asset-item id="model2" src="./model2.glb"></a-asset-item>
@@ -47,7 +50,8 @@
         <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
       </a-assets>
     </a-scene>
-    <script src="./hand-tracking.js"></script>
+    <!-- Remove duplicate script tag -->
+    <!-- <script src="./hand-tracking.js"></script> -->
     <script>
       var scene = AFRAME.scenes[0];
       var currentModelIndex = 0;
@@ -102,128 +106,134 @@
     </script>
     <script>
       const videoElement = document.getElementById('video');
-const canvasElement = document.getElementById('output_canvas');
-const canvasCtx = canvasElement.getContext('2d');
+      const canvasElement = document.getElementById('output_canvas');
+      const canvasCtx = canvasElement.getContext('2d');
 
-let previousLandmarks = null;
-let previousScale = null;
-let previousPosition = null;
+      let previousLandmarks = null;
+      let previousScale = null;
+      let previousPosition = null;
 
-function lerp(a, b, t) {
-    return a * (1 - t) + b * t;
-}
+      function lerp(a, b, t) {
+          return a * (1 - t) + b * t;
+      }
 
-function smoothLandmarks(landmarks) {
-    if (!previousLandmarks) {
-        previousLandmarks = landmarks;
-        return landmarks;
-    }
+      function smoothLandmarks(landmarks) {
+          if (!previousLandmarks) {
+              previousLandmarks = landmarks;
+              return landmarks;
+          }
 
-    const smoothedLandmarks = landmarks.map((landmark, index) => {
-        const previousLandmark = previousLandmarks[index];
-        if (!previousLandmark) return landmark;
+          const smoothedLandmarks = landmarks.map((landmark, index) => {
+              const previousLandmark = previousLandmarks[index];
+              if (!previousLandmark) return landmark;
 
-        const smoothedX = landmark.x * 0.3 + previousLandmark.x * 0.7;
-        const smoothedY = landmark.y * 0.3 + previousLandmark.y * 0.7;
-        const smoothedZ = landmark.z * 0.3 + previousLandmark.z * 0.7;
+              const smoothedX = landmark.x * 0.3 + previousLandmark.x * 0.7;
+              const smoothedY = landmark.y * 0.3 + previousLandmark.y * 0.7;
+              const smoothedZ = landmark.z * 0.3 + previousLandmark.z * 0.7;
 
-        return { x: smoothedX, y: smoothedY, z: smoothedZ };
-    });
+              return { x: smoothedX, y: smoothedY, z: smoothedZ };
+          });
 
-    previousLandmarks = smoothedLandmarks;
-    return smoothedLandmarks;
-}
+          previousLandmarks = smoothedLandmarks;
+          return smoothedLandmarks;
+      }
 
-function onResults(results) {
-    canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    
-    // Draw video with correct size
-    canvasCtx.drawImage(
-        results.image,
-        0, 0, results.image.width, results.image.height,
-        0, 0, canvasElement.width, canvasElement.height
-    );
+      function onResults(results) {
+          canvasCtx.save();
+          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+          
+          // Draw video with correct size
+          canvasCtx.drawImage(
+              results.image,
+              0, 0, results.image.width, results.image.height,
+              0, 0, canvasElement.width, canvasElement.height
+          );
 
-    if (results.multiHandLandmarks) {
-        for (const landmarks of results.multiHandLandmarks) {
-            const smoothedLandmarks = smoothLandmarks(landmarks);
-            drawConnectors(canvasCtx, smoothedLandmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
-            drawLandmarks(canvasCtx, smoothedLandmarks, { color: '#FF0000', lineWidth: 2 });
+          if (results.multiHandLandmarks) {
+              for (const landmarks of results.multiHandLandmarks) {
+                  const smoothedLandmarks = smoothLandmarks(landmarks);
+                  drawConnectors(canvasCtx, smoothedLandmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
+                  drawLandmarks(canvasCtx, smoothedLandmarks, { color: '#FF0000', lineWidth: 2 });
 
-            if (smoothedLandmarks[8] && smoothedLandmarks[4] && currentEntity) {
-                const indexFinger = smoothedLandmarks[8];
-                const thumb = smoothedLandmarks[4];
+                  if (smoothedLandmarks[8] && smoothedLandmarks[4] && currentEntity) {
+                      const indexFinger = smoothedLandmarks[8];
+                      const thumb = smoothedLandmarks[4];
 
-                const distance = Math.sqrt(
-                    Math.pow(indexFinger.x - thumb.x, 2) + Math.pow(indexFinger.y - thumb.y, 2)
-                );
+                      const distance = Math.sqrt(
+                          Math.pow(indexFinger.x - thumb.x, 2) + Math.pow(indexFinger.y - thumb.y, 2)
+                      );
 
-                const targetScale = distance * 5;
-                const smoothedScale = lerp(previousScale || targetScale, targetScale, 0.2);
-                previousScale = smoothedScale;
-                currentEntity.setAttribute('scale', `${smoothedScale} ${smoothedScale} ${smoothedScale}`);
+                      const targetScale = distance * 5;
+                      const smoothedScale = lerp(previousScale || targetScale, targetScale, 0.2);
+                      previousScale = smoothedScale;
+                      currentEntity.setAttribute('scale', `${smoothedScale} ${smoothedScale} ${smoothedScale}`);
 
-                const deltaX = thumb.x - indexFinger.x;
-                const deltaY = thumb.y - indexFinger.y;
-                const deltaZ = thumb.z - indexFinger.z;
+                      const deltaX = thumb.x - indexFinger.x;
+                      const deltaY = thumb.y - indexFinger.y;
+                      const deltaZ = thumb.z - indexFinger.z;
 
-                const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
-                const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
+                      const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
+                      const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
 
-                currentEntity.setAttribute('rotation', `${rotationX} ${rotationY} 0`);
-            }
-        }
-    }
-    canvasCtx.restore();
-}
+                      currentEntity.setAttribute('rotation', `${rotationX} ${rotationY} 0`);
+                  }
+              }
+          }
+          canvasCtx.restore();
+      }
 
-function adjustVideoCanvasSize() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    
-    // Set canvas size
-    canvasElement.style.width = width + 'px';
-    canvasElement.style.height = height + 'px';
-    canvasElement.width = width;
-    canvasElement.height = height;
-    
-    // Set video size
-    videoElement.style.width = width + 'px';
-    videoElement.style.height = height + 'px';
-    videoElement.width = width;
-    videoElement.height = height;
-}
+      function adjustVideoCanvasSize() {
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+          
+          // Set canvas size
+          canvasElement.style.width = width + 'px';
+          canvasElement.style.height = height + 'px';
+          canvasElement.width = width;
+          canvasElement.height = height;
+          
+          // Set video size
+          videoElement.style.width = width + 'px';
+          videoElement.style.height = height + 'px';
+          videoElement.width = width;
+          videoElement.height = height;
+      }
 
-window.addEventListener('resize', adjustVideoCanvasSize);
-adjustVideoCanvasSize();
+      window.addEventListener('resize', adjustVideoCanvasSize);
+      adjustVideoCanvasSize();
 
-const hands = new Hands({
-    locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-    }
-});
+      const hands = new Hands({
+          locateFile: (file) => {
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+          }
+      });
 
-hands.setOptions({
-    maxNumHands: 1,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
-});
+      hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+      });
 
-hands.onResults(onResults);
+      hands.onResults(onResults);
 
-const camera = new Camera(videoElement, {
-    onFrame: async () => {
-        await hands.send({ image: videoElement });
-    },
-    facingMode: "environment"
-});
+      // Modify camera setup
+      const camera = new Camera(videoElement, {
+          onFrame: async () => {
+              await hands.send({ image: videoElement });
+          },
+          facingMode: "environment",
+          width: 1280,
+          height: 720
+      });
 
-camera.start().catch(error => {
-    console.error("Error starting camera:", error);
-    alert("Kamera tidak dapat diakses. Pastikan kamera terhubung dan izin diberikan.");
-});
+      // Wait for A-Frame to initialize before starting hand tracking camera
+      AFRAME.scenes[0].addEventListener('loaded', function () {
+          camera.start().catch(error => {
+              console.error("Error starting camera:", error);
+              alert("Kamera tidak dapat diakses. Pastikan kamera terhubung dan izin diberikan.");
+          });
+      });
     </script>
   </body>
 </html>
