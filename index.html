@@ -32,7 +32,59 @@
         <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
       </a-assets>
     </a-scene>
-    <script src="./hand-tracking.js"></script>
+    <script>
+      var scene = AFRAME.scenes[0];
+      var currentModelIndex = 0;
+      var currentEntity = null;
+      const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
+
+      var modelAsset = document.querySelector('#model1');
+      modelAsset.addEventListener('error', function(e) {
+        console.error('Error loading model:', e);
+        createFallbackObject();
+      });
+
+      var newObject = function(data) {
+        if (currentEntity) {
+          scene.removeChild(currentEntity);
+        }
+
+        var entity = data.detail;
+        entity.setAttribute('gltf-model', models[currentModelIndex]);
+        entity.setAttribute('scale', '1 1 1');
+        entity.setAttribute('material', {
+          shader: 'standard',
+          fog: false
+        });     
+
+        scene.appendChild(entity);
+        currentEntity = entity;
+        
+        currentModelIndex = (currentModelIndex + 1) % models.length;
+      }
+
+      function createFallbackObject(data) {
+        if (currentEntity) {
+          scene.removeChild(currentEntity);
+        }
+
+        var entity = data.detail;
+        entity.setAttribute('geometry', {
+          primitive: 'box',
+          width: 0.1,
+          height: 0.1,
+          depth: 0.1
+        });
+        entity.setAttribute('material', {
+          color: 'red'
+        });
+        scene.appendChild(entity);
+        currentEntity = entity;
+      }
+
+      scene.addEventListener('newAnchoredEntity', newObject);
+    </script>
+    <script src='./hand-tracking.js'></script>
   </body>
 </html>
 
