@@ -230,11 +230,39 @@
       });
 
       // Wait for AR system to be ready
-      scene.addEventListener('ar-hit-test-ready', function () {
+      scene.addEventListener('enter-vr', function () {
+          console.log("AR session started");
+          // Start hand tracking when AR session begins
           camera.start().catch(error => {
               console.error("Error starting camera:", error);
               alert("Kamera tidak dapat diakses. Pastikan kamera terhubung dan izin diberikan.");
           });
+      });
+
+      // Add status indicator
+      const statusDiv = document.createElement('div');
+      statusDiv.style.position = 'fixed';
+      statusDiv.style.bottom = '20px';
+      statusDiv.style.left = '20px';
+      statusDiv.style.color = 'white';
+      statusDiv.style.backgroundColor = 'rgba(0,0,0,0.5)';
+      statusDiv.style.padding = '10px';
+      statusDiv.style.zIndex = '999';
+      document.body.appendChild(statusDiv);
+
+      scene.addEventListener('ar-hit-test-ready', function () {
+          console.log("AR hit-test is ready");
+          statusDiv.textContent = "Tap to place object. Hand tracking enabled.";
+      });
+
+      scene.addEventListener('ar-hit-test-start', function () {
+          statusDiv.textContent = "Looking for surface...";
+      });
+
+      // Initialize hand tracking immediately
+      hands.onResults(onResults);
+      camera.start().catch(error => {
+          console.error("Error starting camera:", error);
       });
     </script>
   </body>
