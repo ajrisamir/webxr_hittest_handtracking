@@ -56,23 +56,100 @@
         createFallbackObject();
       });
 
+      // Tambahkan variabel untuk menyimpan transformasi awal AR
+            let initialARPosition = null;
+            let initialARRotation = null;
+            let initialARScale = null;
+      
       var newObject = function(data) {
-        if (currentEntity) {
-          scene.removeChild(currentEntity);
-        }
+          if (currentEntity) {
+              scene.removeChild(currentEntity);
+          }
 
-        var entity = data.detail;
-        entity.setAttribute('gltf-model', models[currentModelIndex]);
-        entity.setAttribute('scale', '0.1 0.1 0.1');
-        entity.setAttribute('material', {
-          shader: 'standard',
-          fog: false
-        });     
+          var entity = data.detail;
+          entity.setAttribute('gltf-model', models[currentModelIndex]);
+          entity.setAttribute('scale', '0.1 0.1 0.1');
+          entity.setAttribute('material', {
+              shader: 'standard',
+              fog: false
+          });     
 
-        scene.appendChild(entity);
-        currentEntity = entity;
-        
-        currentModelIndex = (currentModelIndex + 1) % models.length;
+          scene.appendChild(entity);
+          currentEntity = entity;
+          
+          // Simpan posisi AR awal
+          initialARPosition = entity.getAttribute('position');
+          initialARRotation = entity.getAttribute('rotation');
+          initialARScale = entity.getAttribute('scale');
+          
+          currentModelIndex = (currentModelIndex + 1) % models.length;
+      }
+
+      // Modifikasi bagian hand tracking untuk transformasi relatif
+      function applyHandTransform(landmarks, entity) {
+          if (!initialARPosition || !initialARRotation || !initialARScale) return;
+
+          const indexFinger = landmarks[8];
+          const thumb = landmarks[4];
+
+          // Hitung skala relatif
+          const distance = Math.sqrt(
+              Math.pow(indexFinger.x - thumb.x, 2) + 
+              Math.pow(indexFinger.y - thumb.y, 2)
+          );
+          const targetScale = distance * 5;
+          const smoothedScale = lerp(previousScale || targetScale, targetScale, 0.2);
+          previousScale = smoothedScale;
+
+          // Terapkan skala relatif terhadap skala AR awal
+          const newScale = {
+              x: initialARScale.x * smoothedScale,
+              y: initialARScale.y * smoothedScale,
+              z: initialARScale.z * smoothedScale
+          };
+          
+          // Hitung rotasi relatif
+          const deltaX = thumb.x - indexFinger.x;
+          const deltaY = thumb.y - indexFinger.y;
+          const deltaZ = thumb.z - indexFinger.z;
+
+          const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
+          const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
+
+          // Terapkan rotasi relatif terhadap rotasi AR awal
+          const newRotation = {
+              x: initialARRotation.x + rotationX,
+              y: initialARRotation.y + rotationY,
+              z: initialARRotation.z
+          };
+
+          // Update transformasi dengan mempertahankan posisi AR
+          entity.setAttribute('position', initialARPosition);
+          entity.setAttribute('rotation', newRotation);
+          entity.setAttribute('scale', newScale);
+      }
+
+      // Update fungsi onResults untuk menggunakan transformasi relatif
+      function onResults(results) {
+          if (!handTrackingActive) return;
+          
+          canvasCtx.save();
+          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+          if (results.multiHandLandmarks && currentEntity) {
+              for (const landmarks of results.multiHandLandmarks) {
+                  const smoothedLandmarks = smoothLandmarks(landmarks);
+                  drawConnectors(canvasCtx, smoothedLandmarks, HAND_CONNECTIONS, 
+                      { color: '#00FF00', lineWidth: 2 });
+                  drawLandmarks(canvasCtx, smoothedLandmarks, 
+                      { color: '#FF0000', lineWidth: 1 });
+
+                  if (smoothedLandmarks[8] && smoothedLandmarks[4]) {
+                      applyHandTransform(smoothedLandmarks, currentEntity);
+                  }
+              }
+          }
+          canvasCtx.restore();
       }
 
       function createFallbackObject(data) {
