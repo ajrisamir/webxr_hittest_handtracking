@@ -20,7 +20,7 @@
         width: 100vw; 
         height: 100vh; 
         object-fit: cover;
-        z-index: -1; /* Change from display: none to z-index: -1 */
+        opacity: 0; /* Hide video but keep it active */
       }
       canvas#output_canvas { 
         position: fixed; 
@@ -29,10 +29,11 @@
         width: 100vw; 
         height: 100vh;
         pointer-events: none;
-        z-index: 1; /* Lower z-index to be below AR content */
+        z-index: 999; /* Put hand tracking visualization on top */
+        opacity: 0.5; /* Make it semi-transparent */
       }
       .a-canvas {
-        z-index: 2; /* Ensure AR content is on top */
+        z-index: 1;
       }
     </style>
   </head>
@@ -229,14 +230,23 @@
           height: 720
       });
 
-      // Wait for AR system to be ready
+      // Start hand tracking when page loads
+      camera.start().catch(error => {
+          console.error("Error starting camera:", error);
+      });
+
+      // Remove the duplicate camera.start() at the bottom
+
+      // Update status messages
       scene.addEventListener('enter-vr', function () {
           console.log("AR session started");
-          // Start hand tracking when AR session begins
-          camera.start().catch(error => {
-              console.error("Error starting camera:", error);
-              alert("Kamera tidak dapat diakses. Pastikan kamera terhubung dan izin diberikan.");
-          });
+          statusDiv.textContent = "AR active. Looking for surface...";
+          canvasElement.style.opacity = "0.5"; // Show hand tracking overlay
+      });
+
+      scene.addEventListener('exit-vr', function () {
+          statusDiv.textContent = "AR session ended";
+          canvasElement.style.opacity = "0"; // Hide hand tracking overlay
       });
 
       // Add status indicator
