@@ -229,8 +229,8 @@
           height: 720
       });
 
-      // Wait for A-Frame to initialize before starting hand tracking camera
-      AFRAME.scenes[0].addEventListener('loaded', function () {
+      // Wait for AR system to be ready
+      scene.addEventListener('ar-hit-test-ready', function () {
           camera.start().catch(error => {
               console.error("Error starting camera:", error);
               alert("Kamera tidak dapat diakses. Pastikan kamera terhubung dan izin diberikan.");
