@@ -13,15 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
       body { margin: 0; overflow: hidden; touch-action: none; }
-      video { 
-        position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100vw; 
-        height: 100vh; 
-        object-fit: cover;
-        opacity: 0; /* Hide video but keep it active */
-      }
+      video { display: none; }  /* Hide video completely */
       canvas#output_canvas { 
         position: fixed; 
         top: 0; 
@@ -29,11 +21,8 @@
         width: 100vw; 
         height: 100vh;
         pointer-events: none;
-        z-index: 999; /* Put hand tracking visualization on top */
-        opacity: 0.5; /* Make it semi-transparent */
-      }
-      .a-canvas {
-        z-index: 1;
+        z-index: 999;
+        background: transparent;  /* Make canvas background transparent */
       }
     </style>
   </head>
@@ -221,21 +210,72 @@
       hands.onResults(onResults);
 
       // Modify camera setup
+      let handTrackingActive = false;
+
       const camera = new Camera(videoElement, {
           onFrame: async () => {
-              await hands.send({ image: videoElement });
+              if (handTrackingActive) {
+                  await hands.send({ image: videoElement });
+              }
           },
           facingMode: "environment",
           width: 1280,
           height: 720
       });
 
-      // Start hand tracking when page loads
-      camera.start().catch(error => {
-          console.error("Error starting camera:", error);
+      // Start hand tracking only after object is placed
+      scene.addEventListener('newAnchoredEntity', function() {
+          if (!handTrackingActive) {
+              handTrackingActive = true;
+              camera.start().catch(error => {
+                  console.error("Error starting camera:", error);
+              });
+          }
       });
 
-      // Remove the duplicate camera.start() at the bottom
+      function onResults(results) {
+          if (!handTrackingActive) return;
+          
+          canvasCtx.save();
+          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+          if (results.multiHandLandmarks) {
+              for (const landmarks of results.multiHandLandmarks) {
+                  const smoothedLandmarks = smoothLandmarks(landmarks);
+                  drawConnectors(canvasCtx, smoothedLandmarks, HAND_CONNECTIONS, 
+                      { color: '#00FF00', lineWidth: 2 });
+                  drawLandmarks(canvasCtx, smoothedLandmarks, 
+                      { color: '#FF0000', lineWidth: 1 });
+
+                  if (smoothedLandmarks[8] && smoothedLandmarks[4] && currentEntity) {
+                      const indexFinger = smoothedLandmarks[8];
+                      const thumb = smoothedLandmarks[4];
+
+                      const distance = Math.sqrt(
+                          Math.pow(indexFinger.x - thumb.x, 2) + Math.pow(indexFinger.y - thumb.y, 2)
+                      );
+
+                      const targetScale = distance * 5;
+                      const smoothedScale = lerp(previousScale || targetScale, targetScale, 0.2);
+                      previousScale = smoothedScale;
+                      currentEntity.setAttribute('scale', `${smoothedScale} ${smoothedScale} ${smoothedScale}`);
+
+                      const deltaX = thumb.x - indexFinger.x;
+                      const deltaY = thumb.y - indexFinger.y;
+                      const deltaZ = thumb.z - indexFinger.z;
+
+                      const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
+                      const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
+
+                      currentEntity.setAttribute('rotation', `${rotationX} ${rotationY} 0`);
+                  }
+              }
+          }
+          canvasCtx.restore();
+      }
+
+      // Remove other camera.start() calls
+      // Remove enter-vr and exit-vr event listeners
 
       // Update status messages
       scene.addEventListener('enter-vr', function () {
