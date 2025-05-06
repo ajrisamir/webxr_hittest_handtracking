@@ -161,22 +161,49 @@
           });
 
           hands.onResults(onResults);
-
-          const camera = new Camera(videoElement, {
-              onFrame: async () => {
-                  if (handTrackingActive) {
-                      await hands.send({ image: videoElement });
-                  }
-              },
-              facingMode: "environment",
-              width: 1280,
-              height: 720
-          });
-
-          camera.start().catch(error => {
-              console.error("Error starting camera:", error);
+          
+          // Ubah cara mengakses kamera
+          navigator.mediaDevices.getUserMedia({
+              video: {
+                  facingMode: "environment",
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 }
+              }
+          }).then(stream => {
+              videoElement.srcObject = stream;
+              videoElement.onloadedmetadata = () => {
+                  videoElement.play();
+                  // Mulai hand tracking setelah video siap
+                  const sendFrame = async () => {
+                      if (handTrackingActive) {
+                          await hands.send({ image: videoElement });
+                      }
+                      if (arSessionActive) {
+                          requestAnimationFrame(sendFrame);
+                      }
+                  };
+                  sendFrame();
+              };
+          }).catch(err => {
+              console.error("Error accessing camera:", err);
           });
       }
+
+      // Modifikasi event listener enter-vr
+      scene.addEventListener('enter-vr', function () {
+          console.log("AR session started");
+          arSessionActive = true;
+          statusDiv.textContent = "AR active. Looking for surface...";
+          canvasElement.style.opacity = "1";
+          
+          // Delay hand tracking initialization
+          setTimeout(() => {
+              if (!handTrackingActive) {
+                  handTrackingActive = true;
+                  initializeHandTracking();
+              }
+          }, 1000); // Delay 1 detik
+      });
 
       var modelAsset = document.querySelector('#model1');
       modelAsset.addEventListener('error', function(e) {
