@@ -44,143 +44,34 @@
     </a-scene>
     <!-- Remove duplicate script tag -->
     <!-- <script src="./hand-tracking.js"></script> -->
+    <!-- Hapus script tag yang kedua dan gabungkan semua kode ke dalam script tag pertama -->
     <script>
       var scene = AFRAME.scenes[0];
       var currentModelIndex = 0;
       var currentEntity = null;
       const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
+      let arSessionActive = false;
+      let handTrackingActive = false;
+      let previousLandmarks = null;
+      let previousScale = null;
+      let initialARPosition = null;
+      let initialARRotation = null;
+      let initialARScale = null;
 
-      var modelAsset = document.querySelector('#model1');
-      modelAsset.addEventListener('error', function(e) {
-        console.error('Error loading model:', e);
-        createFallbackObject();
-      });
-
-      // Tambahkan variabel untuk menyimpan transformasi awal AR
-            let initialARPosition = null;
-            let initialARRotation = null;
-            let initialARScale = null;
-      
-      var newObject = function(data) {
-          if (currentEntity) {
-              scene.removeChild(currentEntity);
-          }
-
-          var entity = data.detail;
-          entity.setAttribute('gltf-model', models[currentModelIndex]);
-          entity.setAttribute('scale', '0.1 0.1 0.1');
-          entity.setAttribute('material', {
-              shader: 'standard',
-              fog: false
-          });     
-
-          scene.appendChild(entity);
-          currentEntity = entity;
-          
-          // Simpan posisi AR awal
-          initialARPosition = entity.getAttribute('position');
-          initialARRotation = entity.getAttribute('rotation');
-          initialARScale = entity.getAttribute('scale');
-          
-          currentModelIndex = (currentModelIndex + 1) % models.length;
-      }
-
-      // Modifikasi bagian hand tracking untuk transformasi relatif
-      function applyHandTransform(landmarks, entity) {
-          if (!initialARPosition || !initialARRotation || !initialARScale) return;
-
-          const indexFinger = landmarks[8];
-          const thumb = landmarks[4];
-
-          // Hitung skala relatif
-          const distance = Math.sqrt(
-              Math.pow(indexFinger.x - thumb.x, 2) + 
-              Math.pow(indexFinger.y - thumb.y, 2)
-          );
-          const targetScale = distance * 5;
-          const smoothedScale = lerp(previousScale || targetScale, targetScale, 0.2);
-          previousScale = smoothedScale;
-
-          // Terapkan skala relatif terhadap skala AR awal
-          const newScale = {
-              x: initialARScale.x * smoothedScale,
-              y: initialARScale.y * smoothedScale,
-              z: initialARScale.z * smoothedScale
-          };
-          
-          // Hitung rotasi relatif
-          const deltaX = thumb.x - indexFinger.x;
-          const deltaY = thumb.y - indexFinger.y;
-          const deltaZ = thumb.z - indexFinger.z;
-
-          const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
-          const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
-
-          // Terapkan rotasi relatif terhadap rotasi AR awal
-          const newRotation = {
-              x: initialARRotation.x + rotationX,
-              y: initialARRotation.y + rotationY,
-              z: initialARRotation.z
-          };
-
-          // Update transformasi dengan mempertahankan posisi AR
-          entity.setAttribute('position', initialARPosition);
-          entity.setAttribute('rotation', newRotation);
-          entity.setAttribute('scale', newScale);
-      }
-
-      // Update fungsi onResults untuk menggunakan transformasi relatif
-      function onResults(results) {
-          if (!handTrackingActive) return;
-          
-          canvasCtx.save();
-          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-          if (results.multiHandLandmarks && currentEntity) {
-              for (const landmarks of results.multiHandLandmarks) {
-                  const smoothedLandmarks = smoothLandmarks(landmarks);
-                  drawConnectors(canvasCtx, smoothedLandmarks, HAND_CONNECTIONS, 
-                      { color: '#00FF00', lineWidth: 2 });
-                  drawLandmarks(canvasCtx, smoothedLandmarks, 
-                      { color: '#FF0000', lineWidth: 1 });
-
-                  if (smoothedLandmarks[8] && smoothedLandmarks[4]) {
-                      applyHandTransform(smoothedLandmarks, currentEntity);
-                  }
-              }
-          }
-          canvasCtx.restore();
-      }
-
-      function createFallbackObject(data) {
-        if (currentEntity) {
-          scene.removeChild(currentEntity);
-        }
-
-        var entity = data.detail;
-        entity.setAttribute('geometry', {
-          primitive: 'box',
-          width: 0.1,
-          height: 0.1,
-          depth: 0.1
-        });
-        entity.setAttribute('material', {
-          color: 'red'
-        });
-        scene.appendChild(entity);
-        currentEntity = entity;
-      }
-
-      scene.addEventListener('newAnchoredEntity', newObject);
-    </script>
-    <script>
       const videoElement = document.getElementById('video');
       const canvasElement = document.getElementById('output_canvas');
       const canvasCtx = canvasElement.getContext('2d');
 
-      let previousLandmarks = null;
-      let previousScale = null;
-      let previousPosition = null;
+      // Status indicator setup
+      const statusDiv = document.createElement('div');
+      statusDiv.style.position = 'fixed';
+      statusDiv.style.bottom = '20px';
+      statusDiv.style.left = '20px';
+      statusDiv.style.color = 'white';
+      statusDiv.style.backgroundColor = 'rgba(0,0,0,0.5)';
+      statusDiv.style.padding = '10px';
+      statusDiv.style.zIndex = '999';
+      document.body.appendChild(statusDiv);
 
       function lerp(a, b, t) {
           return a * (1 - t) + b * t;
@@ -207,111 +98,34 @@
           return smoothedLandmarks;
       }
 
-      function onResults(results) {
-          canvasCtx.save();
-          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-          
-          // Draw video with correct size
-          canvasCtx.drawImage(
-              results.image,
-              0, 0, results.image.width, results.image.height,
-              0, 0, canvasElement.width, canvasElement.height
+      function updateObjectTransform(indexFinger, thumb) {
+          if (!initialARPosition || !initialARRotation || !initialARScale) return;
+
+          const distance = Math.sqrt(
+              Math.pow(indexFinger.x - thumb.x, 2) + 
+              Math.pow(indexFinger.y - thumb.y, 2)
           );
 
-          if (results.multiHandLandmarks) {
-              for (const landmarks of results.multiHandLandmarks) {
-                  const smoothedLandmarks = smoothLandmarks(landmarks);
-                  drawConnectors(canvasCtx, smoothedLandmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
-                  drawLandmarks(canvasCtx, smoothedLandmarks, { color: '#FF0000', lineWidth: 2 });
-
-                  if (smoothedLandmarks[8] && smoothedLandmarks[4] && currentEntity) {
-                      const indexFinger = smoothedLandmarks[8];
-                      const thumb = smoothedLandmarks[4];
-
-                      const distance = Math.sqrt(
-                          Math.pow(indexFinger.x - thumb.x, 2) + Math.pow(indexFinger.y - thumb.y, 2)
-                      );
-
-                      const targetScale = distance * 5;
-                      const smoothedScale = lerp(previousScale || targetScale, targetScale, 0.2);
-                      previousScale = smoothedScale;
-                      currentEntity.setAttribute('scale', `${smoothedScale} ${smoothedScale} ${smoothedScale}`);
-
-                      const deltaX = thumb.x - indexFinger.x;
-                      const deltaY = thumb.y - indexFinger.y;
-                      const deltaZ = thumb.z - indexFinger.z;
-
-                      const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
-                      const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
-
-                      currentEntity.setAttribute('rotation', `${rotationX} ${rotationY} 0`);
-                  }
-              }
-          }
-          canvasCtx.restore();
-      }
-
-      function adjustVideoCanvasSize() {
-          const width = window.innerWidth;
-          const height = window.innerHeight;
+          const baseScale = 0.1;
+          const scaleFactor = distance * 2;
+          const newScale = baseScale * scaleFactor;
           
-          // Set canvas size
-          canvasElement.style.width = width + 'px';
-          canvasElement.style.height = height + 'px';
-          canvasElement.width = width;
-          canvasElement.height = height;
+          const smoothedScale = lerp(previousScale || newScale, newScale, 0.2);
+          previousScale = smoothedScale;
           
-          // Set video size
-          videoElement.style.width = width + 'px';
-          videoElement.style.height = height + 'px';
-          videoElement.width = width;
-          videoElement.height = height;
+          const deltaX = thumb.x - indexFinger.x;
+          const deltaY = thumb.y - indexFinger.y;
+          const deltaZ = thumb.z - indexFinger.z;
+
+          const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
+          const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
+          
+          currentEntity.setAttribute('rotation', `${rotationX} ${rotationY} 0`);
+          currentEntity.setAttribute('scale', `${smoothedScale} ${smoothedScale} ${smoothedScale}`);
       }
-
-      window.addEventListener('resize', adjustVideoCanvasSize);
-      adjustVideoCanvasSize();
-
-      const hands = new Hands({
-          locateFile: (file) => {
-              return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-          }
-      });
-
-      hands.setOptions({
-          maxNumHands: 1,
-          modelComplexity: 1,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5
-      });
-
-      hands.onResults(onResults);
-
-      // Modify camera setup
-      let handTrackingActive = false;
-
-      const camera = new Camera(videoElement, {
-          onFrame: async () => {
-              if (handTrackingActive) {
-                  await hands.send({ image: videoElement });
-              }
-          },
-          facingMode: "environment",
-          width: 1280,
-          height: 720
-      });
-
-      // Start hand tracking only after object is placed
-      scene.addEventListener('newAnchoredEntity', function() {
-          if (!handTrackingActive) {
-              handTrackingActive = true;
-              camera.start().catch(error => {
-                  console.error("Error starting camera:", error);
-              });
-          }
-      });
 
       function onResults(results) {
-          if (!handTrackingActive) return;
+          if (!arSessionActive || !handTrackingActive || !currentEntity) return;
           
           canvasCtx.save();
           canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -324,58 +138,114 @@
                   drawLandmarks(canvasCtx, smoothedLandmarks, 
                       { color: '#FF0000', lineWidth: 1 });
 
-                  if (smoothedLandmarks[8] && smoothedLandmarks[4] && currentEntity) {
-                      const indexFinger = smoothedLandmarks[8];
-                      const thumb = smoothedLandmarks[4];
-
-                      const distance = Math.sqrt(
-                          Math.pow(indexFinger.x - thumb.x, 2) + Math.pow(indexFinger.y - thumb.y, 2)
-                      );
-
-                      const targetScale = distance * 5;
-                      const smoothedScale = lerp(previousScale || targetScale, targetScale, 0.2);
-                      previousScale = smoothedScale;
-                      currentEntity.setAttribute('scale', `${smoothedScale} ${smoothedScale} ${smoothedScale}`);
-
-                      const deltaX = thumb.x - indexFinger.x;
-                      const deltaY = thumb.y - indexFinger.y;
-                      const deltaZ = thumb.z - indexFinger.z;
-
-                      const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
-                      const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
-
-                      currentEntity.setAttribute('rotation', `${rotationX} ${rotationY} 0`);
+                  if (smoothedLandmarks[8] && smoothedLandmarks[4]) {
+                      updateObjectTransform(smoothedLandmarks[8], smoothedLandmarks[4]);
                   }
               }
           }
           canvasCtx.restore();
       }
 
-      // Remove other camera.start() calls
-      // Remove enter-vr and exit-vr event listeners
+      function initializeHandTracking() {
+          const hands = new Hands({
+              locateFile: (file) => {
+                  return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+              }
+          });
 
-      // Update status messages
+          hands.setOptions({
+              maxNumHands: 1,
+              modelComplexity: 1,
+              minDetectionConfidence: 0.5,
+              minTrackingConfidence: 0.5
+          });
+
+          hands.onResults(onResults);
+
+          const camera = new Camera(videoElement, {
+              onFrame: async () => {
+                  if (handTrackingActive) {
+                      await hands.send({ image: videoElement });
+                  }
+              },
+              facingMode: "environment",
+              width: 1280,
+              height: 720
+          });
+
+          camera.start().catch(error => {
+              console.error("Error starting camera:", error);
+          });
+      }
+
+      var modelAsset = document.querySelector('#model1');
+      modelAsset.addEventListener('error', function(e) {
+          console.error('Error loading model:', e);
+          createFallbackObject();
+      });
+
+      function createFallbackObject(data) {
+          if (currentEntity) {
+              scene.removeChild(currentEntity);
+          }
+
+          var entity = data.detail;
+          entity.setAttribute('geometry', {
+              primitive: 'box',
+              width: 0.1,
+              height: 0.1,
+              depth: 0.1
+          });
+          entity.setAttribute('material', {
+              color: 'red'
+          });
+          scene.appendChild(entity);
+          currentEntity = entity;
+      }
+
+      var newObject = function(data) {
+          if (currentEntity) {
+              scene.removeChild(currentEntity);
+          }
+
+          var entity = data.detail;
+          entity.setAttribute('gltf-model', models[currentModelIndex]);
+          entity.setAttribute('scale', '0.1 0.1 0.1');
+          entity.setAttribute('material', {
+              shader: 'standard',
+              fog: false
+          });     
+
+          scene.appendChild(entity);
+          currentEntity = entity;
+          
+          initialARPosition = entity.getAttribute('position');
+          initialARRotation = entity.getAttribute('rotation');
+          initialARScale = entity.getAttribute('scale');
+          
+          currentModelIndex = (currentModelIndex + 1) % models.length;
+      }
+
+      scene.addEventListener('newAnchoredEntity', newObject);
+
+      // Event Listeners for AR
       scene.addEventListener('enter-vr', function () {
           console.log("AR session started");
+          arSessionActive = true;
           statusDiv.textContent = "AR active. Looking for surface...";
-          canvasElement.style.opacity = "0.5"; // Show hand tracking overlay
+          
+          if (!handTrackingActive) {
+              handTrackingActive = true;
+              initializeHandTracking();
+          }
       });
 
       scene.addEventListener('exit-vr', function () {
+          arSessionActive = false;
+          handTrackingActive = false;
           statusDiv.textContent = "AR session ended";
-          canvasElement.style.opacity = "0"; // Hide hand tracking overlay
+          canvasElement.style.opacity = "0";
       });
-
-      // Add status indicator
-      const statusDiv = document.createElement('div');
-      statusDiv.style.position = 'fixed';
-      statusDiv.style.bottom = '20px';
-      statusDiv.style.left = '20px';
-      statusDiv.style.color = 'white';
-      statusDiv.style.backgroundColor = 'rgba(0,0,0,0.5)';
-      statusDiv.style.padding = '10px';
-      statusDiv.style.zIndex = '999';
-      document.body.appendChild(statusDiv);
 
       scene.addEventListener('ar-hit-test-ready', function () {
           console.log("AR hit-test is ready");
@@ -386,11 +256,23 @@
           statusDiv.textContent = "Looking for surface...";
       });
 
-      // Initialize hand tracking immediately
-      hands.onResults(onResults);
-      camera.start().catch(error => {
-          console.error("Error starting camera:", error);
-      });
+      function adjustVideoCanvasSize() {
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+          
+          canvasElement.style.width = width + 'px';
+          canvasElement.style.height = height + 'px';
+          canvasElement.width = width;
+          canvasElement.height = height;
+          
+          videoElement.style.width = width + 'px';
+          videoElement.style.height = height + 'px';
+          videoElement.width = width;
+          videoElement.height = height;
+      }
+
+      window.addEventListener('resize', adjustVideoCanvasSize);
+      adjustVideoCanvasSize();
     </script>
   </body>
 </html>
