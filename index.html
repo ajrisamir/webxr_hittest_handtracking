@@ -162,28 +162,44 @@
 
           hands.onResults(onResults);
 
-          // Gunakan video stream yang sudah ada dari WebXR
-          const xrCameraStream = document.querySelector('a-scene').components.camera.camera.el.components.camera.camera.stream;
-          if (xrCameraStream) {
-              videoElement.srcObject = xrCameraStream;
-              videoElement.onloadedmetadata = () => {
-                  videoElement.play();
-                  const processVideo = async () => {
-                      if (handTrackingActive && videoElement.readyState === 4) {
-                          try {
-                              await hands.send({ image: videoElement });
-                          } catch (error) {
-                              console.error("Hand tracking error:", error);
-                          }
+          // Gunakan getUserMedia langsung
+          navigator.mediaDevices.getUserMedia({
+              video: {
+                  facingMode: 'environment',
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 }
+              }
+          }).then(stream => {
+              videoElement.srcObject = stream;
+              return videoElement.play();
+          }).then(() => {
+              const processFrame = async () => {
+                  if (handTrackingActive) {
+                      try {
+                          await hands.send({ image: videoElement });
+                      } catch (error) {
+                          console.error("Hand tracking error:", error);
                       }
-                      requestAnimationFrame(processVideo);
-                  };
-                  processVideo();
+                  }
+                  if (arSessionActive) {
+                      requestAnimationFrame(processFrame);
+                  }
               };
-          }
+              processFrame();
+          }).catch(error => {
+              console.error("Error:", error);
+              statusDiv.textContent = "Camera error: " + error.message;
+          });
       }
 
-      // Hapus event listeners yang duplikat dan gabungkan menjadi satu
+      // Hapus semua event listener yang ada sebelumnya
+      const eventListeners = scene._events;
+      if (eventListeners) {
+          delete eventListeners['enter-vr'];
+          delete eventListeners['exit-vr'];
+      }
+
+      // Tambahkan event listener baru
       scene.addEventListener('enter-vr', function () {
           console.log("AR session started");
           arSessionActive = true;
@@ -191,16 +207,14 @@
           canvasElement.style.display = "block";
           canvasElement.style.opacity = "1";
           
-          // Tunggu hingga kamera AR siap
-          scene.renderer.xr.addEventListener('sessionstart', () => {
-              setTimeout(() => {
-                  if (!handTrackingActive) {
-                      handTrackingActive = true;
-                      initializeHandTracking();
-                      console.log("Hand tracking initialized");
-                  }
-              }, 1000);
-          });
+          // Mulai hand tracking setelah AR siap
+          setTimeout(() => {
+              if (!handTrackingActive) {
+                  handTrackingActive = true;
+                  initializeHandTracking();
+                  console.log("Hand tracking initialized");
+              }
+          }, 2000);
       });
 
       scene.addEventListener('exit-vr', function () {
@@ -209,12 +223,15 @@
           statusDiv.textContent = "AR session ended";
           canvasElement.style.display = "none";
           
+          // Hentikan video stream
           if (videoElement.srcObject) {
+              const tracks = videoElement.srcObject.getTracks();
+              tracks.forEach(track => track.stop());
               videoElement.srcObject = null;
           }
       });
 
-      // Hapus event listeners yang duplikat di bawah
+      // Hapus event listener duplikat di bawah
       var modelAsset = document.querySelector('#model1');
       modelAsset.addEventListener('error', function(e) {
           console.error('Error loading model:', e);
