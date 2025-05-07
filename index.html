@@ -253,31 +253,44 @@
           }
       });
 
-      // Update newObject function
+      // Tambahkan event listener untuk hit-test
+      scene.addEventListener('newAnchoredEntity', newObject);
+
       function newObject(data) {
           if (currentEntity) {
-              scene.removeChild(currentEntity);
+              currentEntity.parentNode.removeChild(currentEntity);
           }
 
           var entity = data.detail;
           entity.setAttribute('gltf-model', models[currentModelIndex]);
           entity.setAttribute('scale', '0.1 0.1 0.1');
           entity.setAttribute('shadow', 'cast: true; receive: true');
+          entity.setAttribute('class', 'clickable');  // Tambahkan class untuk interaksi
           
           scene.appendChild(entity);
           currentEntity = entity;
           
+          // Simpan posisi awal
           initialARPosition = entity.getAttribute('position');
           initialARRotation = entity.getAttribute('rotation');
           initialARScale = entity.getAttribute('scale');
           
+          // Reset nilai sebelumnya
           previousScale = null;
           previousLandmarks = null;
 
-          statusDiv.textContent = `Model ${currentModelIndex + 1} placed. Use hand gestures to control.`;
+          statusDiv.textContent = `Model ${currentModelIndex + 1} ditempatkan. Gunakan gerakan tangan untuk mengontrol.`;
       }
-      scene.addEventListener('ar-hit-test-ready', () => {
-          statusDiv.textContent = "Tap to place object. Hand tracking enabled.";
+
+      // Tambahkan event listener untuk debugging
+      scene.addEventListener('ar-hit-test-achieved', (evt) => {
+          console.log('Hit test berhasil:', evt.detail);
+          statusDiv.textContent = "Permukaan terdeteksi. Tap untuk menempatkan objek.";
+      });
+
+      scene.addEventListener('ar-hit-test-failed', () => {
+          console.log('Hit test gagal');
+          statusDiv.textContent = "Tidak dapat menemukan permukaan. Coba arahkan ke permukaan datar.";
       });
       scene.addEventListener('ar-hit-test-start', () => {
           statusDiv.textContent = "Looking for surface...";
