@@ -155,49 +155,98 @@
 
           hands.setOptions({
               maxNumHands: 1,
-              modelComplexity: 0,  // Ubah ke 0 untuk performa lebih baik
+              modelComplexity: 0,
               minDetectionConfidence: 0.5,
               minTrackingConfidence: 0.5
           });
 
           hands.onResults(onResults);
 
-          // Tunggu sampai AR session benar-benar siap
-          const startCamera = () => {
-              navigator.mediaDevices.getUserMedia({
-                  video: {
-                      facingMode: { exact: "environment" },
-                      width: { ideal: 640 },  // Kurangi resolusi
-                      height: { ideal: 480 }
+          // Buat canvas baru untuk capture WebXR view
+          const xrCanvas = document.createElement('canvas');
+          const xrCtx = xrCanvas.getContext('2d');
+          
+          function captureXRView() {
+              if (arSessionActive && scene.renderer) {
+                  xrCanvas.width = scene.renderer.domElement.width;
+                  xrCanvas.height = scene.renderer.domElement.height;
+                  xrCtx.drawImage(scene.renderer.domElement, 0, 0);
+                  
+                  if (handTrackingActive) {
+                      hands.send({ image: xrCanvas })
+                          .catch(err => console.error("Hand tracking error:", err));
                   }
-              }).then(stream => {
-                  videoElement.srcObject = stream;
-                  videoElement.onloadedmetadata = () => {
-                      videoElement.play();
-                      // Mulai hand tracking setelah video siap
-                      const sendFrame = async () => {
-                          if (handTrackingActive && videoElement.readyState === 4) {
-                              try {
-                                  await hands.send({ image: videoElement });
-                              } catch (error) {
-                                  console.error("Hand tracking error:", error);
-                              }
-                          }
-                          if (arSessionActive) {
-                              requestAnimationFrame(sendFrame);
-                          }
-                      };
-                      sendFrame();
-                  };
-              }).catch(err => {
-                  console.error("Camera error:", err);
-                  statusDiv.textContent = "Camera error: " + err.message;
-              });
-          };
+              }
+              requestAnimationFrame(captureXRView);
+          }
 
-          // Tunggu sebentar sebelum memulai kamera
-          setTimeout(startCamera, 1000);
+          captureXRView();
       }
+
+      // Hapus semua event listener yang ada
+      const events = ['enter-vr', 'exit-vr', 'newAnchoredEntity'];
+      events.forEach(event => {
+          if (scene._events && scene._events[event]) {
+              scene._events[event] = [];
+          }
+      });
+
+      // Satu set event listener
+      scene.addEventListener('enter-vr', function () {
+          console.log("AR session started");
+          arSessionActive = true;
+          statusDiv.textContent = "AR active. Looking for surface...";
+          canvasElement.style.display = "block";
+          
+          setTimeout(() => {
+              handTrackingActive = true;
+              initializeHandTracking();
+          }, 1000);
+      });
+
+      scene.addEventListener('exit-vr', function () {
+          arSessionActive = false;
+          handTrackingActive = false;
+          statusDiv.textContent = "AR session ended";
+          canvasElement.style.display = "none";
+      });
+
+      // Hapus event listener duplikat di bawah
+      // Tunggu sampai AR session benar-benar siap
+      const startCamera = () => {
+          navigator.mediaDevices.getUserMedia({
+              video: {
+                  facingMode: { exact: "environment" },
+                  width: { ideal: 640 },  // Kurangi resolusi
+                  height: { ideal: 480 }
+              }
+          }).then(stream => {
+              videoElement.srcObject = stream;
+              videoElement.onloadedmetadata = () => {
+                  videoElement.play();
+                  // Mulai hand tracking setelah video siap
+                  const sendFrame = async () => {
+                      if (handTrackingActive && videoElement.readyState === 4) {
+                          try {
+                              await hands.send({ image: videoElement });
+                          } catch (error) {
+                              console.error("Hand tracking error:", error);
+                          }
+                      }
+                      if (arSessionActive) {
+                          requestAnimationFrame(sendFrame);
+                      }
+                  };
+                  sendFrame();
+              };
+          }).catch(err => {
+              console.error("Camera error:", err);
+              statusDiv.textContent = "Camera error: " + err.message;
+          });
+      };
+
+      // Tunggu sebentar sebelum memulai kamera
+      setTimeout(startCamera, 1000);
 
       // Hapus SEMUA event listener yang ada
       const clearEventListeners = () => {
