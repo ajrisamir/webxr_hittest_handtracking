@@ -151,7 +151,7 @@
 
       function initializeHandTracking() {
           if (handTracker) {
-              handTracker.close(); // Tutup instance sebelumnya jika ada
+              handTracker.close();
               handTracker = null;
           }
 
@@ -163,38 +163,43 @@
 
           handTracker.setOptions({
               maxNumHands: 1,
-              modelComplexity: 1,
-              minDetectionConfidence: 0.5,
+              modelComplexity: 0,  // Ubah ke model yang lebih ringan
+              minDetectionConfidence: 0.7,  // Tingkatkan confidence threshold
               minTrackingConfidence: 0.5
           });
 
           handTracker.onResults(onResults);
 
-          // Gunakan Camera API yang lebih sederhana
-          const camera = new Camera(videoElement, {
-              onFrame: async () => {
-                  if (handTrackingActive) {
+          // Gunakan getUserMedia langsung
+          navigator.mediaDevices.getUserMedia({
+              video: {
+                  facingMode: { exact: "environment" },
+                  width: { ideal: 640 },
+                  height: { ideal: 480 }
+              }
+          }).then(stream => {
+              videoElement.srcObject = stream;
+              videoElement.play();
+              
+              function processFrame() {
+                  if (handTrackingActive && videoElement.readyState === 4) {
                       try {
-                          await handTracker.send({image: videoElement});
+                          handTracker.send({ image: videoElement });
                       } catch (error) {
                           console.error('Hand tracking error:', error);
                       }
                   }
-              },
-              width: 640,
-              height: 480,
-              facingMode: 'environment'
+                  if (arSessionActive) {
+                      requestAnimationFrame(processFrame);
+                  }
+              }
+              processFrame();
+              console.log('Camera started successfully');
+              statusDiv.textContent = "Hand tracking active";
+          }).catch(error => {
+              console.error('Camera error:', error);
+              statusDiv.textContent = "Camera error: " + error.message;
           });
-
-          camera.start()
-              .then(() => {
-                  console.log('Camera started successfully');
-                  statusDiv.textContent = "Hand tracking active";
-              })
-              .catch((error) => {
-                  console.error('Error starting camera:', error);
-                  statusDiv.textContent = "Camera error: " + error.message;
-              });
       }
 
       // Perbaikan event listener enter-vr
@@ -205,15 +210,12 @@
           canvasElement.style.display = "block";
           canvasElement.style.opacity = "1";
           
-          // Tunggu sampai AR session benar-benar siap
-          scene.renderer.xr.addEventListener('sessionstart', () => {
-              setTimeout(() => {
-                  if (!handTrackingActive) {
-                      handTrackingActive = true;
-                      initializeHandTracking();
-                  }
-              }, 1000);
-          });
+          // Tunggu AR session siap
+          setTimeout(() => {
+              handTrackingActive = true;
+              initializeHandTracking();
+              console.log("Hand tracking initialized");
+          }, 2000);
       });
 
       scene.addEventListener('exit-vr', function () {
