@@ -24,24 +24,80 @@
         z-index: 999;
         background: transparent;  /* Make canvas background transparent */
       }
-        #modelSwitcher {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          padding: 10px 20px;
-          background: rgba(0,0,0,0.5);
-          color: white;
-          border: none;
-          border-radius: 5px;
-          z-index: 1000;
-          cursor: pointer;
+        body { margin: 0; overflow: hidden; touch-action: none; }
+        video { display: none; }  /* Hide video completely */
+        canvas#output_canvas { 
+          position: fixed; 
+          top: 0; 
+          left: 0; 
+          width: 100vw; 
+          height: 100vh;
+          pointer-events: none;
+          z-index: 999;
+          background: transparent;  /* Make canvas background transparent */
         }
+          #modelSwitcher {
+            position: fixed;
+            bottom: 80px; /* Posisi di atas status indicator */
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            z-index: 1000;
+            cursor: pointer;
+            pointer-events: auto; /* Pastikan tombol bisa diklik */
+          }
+      
+          #reticle {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            pointer-events: none;
+            z-index: 998;
+          }
+      
+          .reticle-circle {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px solid white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+          }
+      
+          .reticle-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            border-left: 3px solid white;
+            border-bottom: 3px solid white;
+            transform: translate(-50%, -25%) rotate(-45deg);
+          }
+      
+          @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+        </style>
       </style>
     </style>
   </head>
   <body>
     <!-- Add this after video element -->
     <button id="modelSwitcher">Switch Model</button>
+    <div id="reticle">
+      <div class="reticle-circle"></div>
+      <div class="reticle-arrow"></div>
+    </div>
     <video id="video" autoplay playsinline></video>
     <canvas id="output_canvas"></canvas>
     <a-scene hit-test embedded>
@@ -215,15 +271,16 @@
               });
       }
 
-      // Perbaikan event listener enter-vr
+      const reticle = document.getElementById('reticle');
+      
       scene.addEventListener('enter-vr', function () {
           console.log("AR session started");
           arSessionActive = true;
           statusDiv.textContent = "AR active. Looking for surface...";
           canvasElement.style.display = "block";
           canvasElement.style.opacity = "1";
+          reticle.style.display = "block"; // Tampilkan reticle
           
-          // Tunggu AR session siap
           setTimeout(() => {
               handTrackingActive = true;
               initializeHandTracking();
@@ -246,10 +303,12 @@
 
       // Add after variable declarations
       const modelSwitcher = document.getElementById('modelSwitcher');
-      modelSwitcher.addEventListener('click', () => {
+      modelSwitcher.addEventListener('click', (event) => {
+          event.stopPropagation(); // Hentikan event bubbling
           currentModelIndex = (currentModelIndex + 1) % models.length;
           if (currentEntity) {
               currentEntity.setAttribute('gltf-model', models[currentModelIndex]);
+              statusDiv.textContent = `Model ${currentModelIndex + 1} dipilih`;
           }
       });
 
@@ -286,11 +345,13 @@
       scene.addEventListener('ar-hit-test-achieved', (evt) => {
           console.log('Hit test berhasil:', evt.detail);
           statusDiv.textContent = "Permukaan terdeteksi. Tap untuk menempatkan objek.";
+          reticle.style.opacity = "1"; // Tampilkan reticle dengan jelas
       });
 
       scene.addEventListener('ar-hit-test-failed', () => {
           console.log('Hit test gagal');
           statusDiv.textContent = "Tidak dapat menemukan permukaan. Coba arahkan ke permukaan datar.";
+          reticle.style.opacity = "0.5"; // Redup reticle
       });
       scene.addEventListener('ar-hit-test-start', () => {
           statusDiv.textContent = "Looking for surface...";
