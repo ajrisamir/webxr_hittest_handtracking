@@ -24,9 +24,24 @@
         z-index: 999;
         background: transparent;  /* Make canvas background transparent */
       }
+        #modelSwitcher {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          padding: 10px 20px;
+          background: rgba(0,0,0,0.5);
+          color: white;
+          border: none;
+          border-radius: 5px;
+          z-index: 1000;
+          cursor: pointer;
+        }
+      </style>
     </style>
   </head>
   <body>
+    <!-- Add this after video element -->
+    <button id="modelSwitcher">Switch Model</button>
     <video id="video" autoplay playsinline></video>
     <canvas id="output_canvas"></canvas>
     <a-scene hit-test embedded>
@@ -107,10 +122,10 @@
           );
 
           const baseScale = 0.1;
-          const scaleFactor = distance * 2;
+          const scaleFactor = Math.min(distance * 2, 3.0); // Limit maximum scale
           const newScale = baseScale * scaleFactor;
           
-          const smoothedScale = lerp(previousScale || newScale, newScale, 0.2);
+          const smoothedScale = lerp(previousScale || newScale, newScale, 0.1); // Slower smoothing
           previousScale = smoothedScale;
           
           const deltaX = thumb.x - indexFinger.x;
@@ -120,7 +135,11 @@
           const rotationX = Math.atan2(deltaY, deltaZ) * (180 / Math.PI);
           const rotationY = Math.atan2(deltaX, deltaZ) * (180 / Math.PI);
           
-          currentEntity.setAttribute('rotation', `${rotationX} ${rotationY} 0`);
+          // Apply rotation limits
+          const limitedRotationX = Math.max(-90, Math.min(90, rotationX));
+          const limitedRotationY = Math.max(-90, Math.min(90, rotationY));
+          
+          currentEntity.setAttribute('rotation', `${limitedRotationX} ${limitedRotationY} 0`);
           currentEntity.setAttribute('scale', `${smoothedScale} ${smoothedScale} ${smoothedScale}`);
       }
 
@@ -225,6 +244,16 @@
           }
       });
 
+      // Add after variable declarations
+      const modelSwitcher = document.getElementById('modelSwitcher');
+      modelSwitcher.addEventListener('click', () => {
+          currentModelIndex = (currentModelIndex + 1) % models.length;
+          if (currentEntity) {
+              currentEntity.setAttribute('gltf-model', models[currentModelIndex]);
+          }
+      });
+
+      // Update newObject function
       function newObject(data) {
           if (currentEntity) {
               scene.removeChild(currentEntity);
@@ -233,18 +262,19 @@
           var entity = data.detail;
           entity.setAttribute('gltf-model', models[currentModelIndex]);
           entity.setAttribute('scale', '0.1 0.1 0.1');
+          entity.setAttribute('shadow', 'cast: true; receive: true');
           
           scene.appendChild(entity);
           currentEntity = entity;
           
-          // Store initial transform
           initialARPosition = entity.getAttribute('position');
           initialARRotation = entity.getAttribute('rotation');
           initialARScale = entity.getAttribute('scale');
           
-          // Reset previous values
           previousScale = null;
           previousLandmarks = null;
+
+          statusDiv.textContent = `Model ${currentModelIndex + 1} placed. Use hand gestures to control.`;
       }
       scene.addEventListener('ar-hit-test-ready', () => {
           statusDiv.textContent = "Tap to place object. Hand tracking enabled.";
