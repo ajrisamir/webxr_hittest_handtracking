@@ -87,17 +87,53 @@
             50% { transform: scale(1.1); opacity: 0.5; }
             100% { transform: scale(1); opacity: 1; }
           }
-        </style>
-      </style>
+    </style>
+    <style>
+        body { margin: 0; overflow: hidden; touch-action: none; }
+        video { display: none; }  /* Hide video completely */
+        canvas#output_canvas { 
+          position: fixed; 
+          top: 0; 
+          left: 0; 
+          width: 100vw; 
+          height: 100vh;
+          pointer-events: none;
+          z-index: 999;
+          background: transparent;  /* Make canvas background transparent */
+        }
+          #modelSwitcher {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            z-index: 1000;
+            pointer-events: all;
+            touch-action: none; /* Mencegah event touch default */
+          }
+      
+          .hit-test-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 120px); /* Area di atas tombol */
+            pointer-events: all;
+          }
     </style>
   </head>
   <body>
     <!-- Add this after video element -->
-    <button id="modelSwitcher">Switch Model</button>
-    <div id="reticle">
-      <div class="reticle-circle"></div>
-      <div class="reticle-arrow"></div>
-    </div>
+    <div class="hit-test-area"></div>
+        <button id="modelSwitcher">Switch Model</button>
+        <div id="reticle">
+          <div class="reticle-circle"></div>
+          <div class="reticle-arrow"></div>
+        </div>
     <video id="video" autoplay playsinline></video>
     <canvas id="output_canvas"></canvas>
     <a-scene hit-test embedded>
@@ -312,9 +348,32 @@
           }
       });
 
-      // Tambahkan event listener untuk hit-test
-      scene.addEventListener('newAnchoredEntity', newObject);
+      // Tambahkan variabel untuk menyimpan posisi hit-test
+      let hitTestPosition = null;
 
+      // Update event listener hit-test
+      scene.addEventListener('ar-hit-test-achieved', (evt) => {
+          console.log('Hit test berhasil:', evt.detail);
+          hitTestPosition = evt.detail.position;
+          
+          // Update posisi reticle
+          if (reticle) {
+              const position = evt.detail.position;
+              reticle.style.display = 'block';
+              // Konversi posisi 3D ke koordinat layar
+              const vector = new THREE.Vector3(position.x, position.y, position.z);
+              vector.project(scene.camera);
+              
+              const x = (vector.x + 1) / 2 * window.innerWidth;
+              const y = (-vector.y + 1) / 2 * window.innerHeight;
+              
+              reticle.style.transform = `translate(${x}px, ${y}px)`;
+              reticle.style.opacity = "1";
+          }
+          statusDiv.textContent = "Permukaan terdeteksi. Tap untuk menempatkan objek.";
+      });
+
+      // Update fungsi newObject
       function newObject(data) {
           if (currentEntity) {
               currentEntity.parentNode.removeChild(currentEntity);
@@ -324,28 +383,33 @@
           entity.setAttribute('gltf-model', models[currentModelIndex]);
           entity.setAttribute('scale', '0.1 0.1 0.1');
           entity.setAttribute('shadow', 'cast: true; receive: true');
-          entity.setAttribute('class', 'clickable');  // Tambahkan class untuk interaksi
+          entity.setAttribute('class', 'clickable');
           
           scene.appendChild(entity);
           currentEntity = entity;
           
-          // Simpan posisi awal
           initialARPosition = entity.getAttribute('position');
           initialARRotation = entity.getAttribute('rotation');
           initialARScale = entity.getAttribute('scale');
           
-          // Reset nilai sebelumnya
           previousScale = null;
           previousLandmarks = null;
 
+          // Sembunyikan reticle setelah objek ditempatkan
+          reticle.style.display = 'none';
+          
           statusDiv.textContent = `Model ${currentModelIndex + 1} ditempatkan. Gunakan gerakan tangan untuk mengontrol.`;
       }
 
-      // Tambahkan event listener untuk debugging
-      scene.addEventListener('ar-hit-test-achieved', (evt) => {
-          console.log('Hit test berhasil:', evt.detail);
-          statusDiv.textContent = "Permukaan terdeteksi. Tap untuk menempatkan objek.";
-          reticle.style.opacity = "1"; // Tampilkan reticle dengan jelas
+      // Update event listener untuk tombol switch
+      modelSwitcher.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          currentModelIndex = (currentModelIndex + 1) % models.length;
+          if (currentEntity) {
+              currentEntity.setAttribute('gltf-model', models[currentModelIndex]);
+              statusDiv.textContent = `Model ${currentModelIndex + 1} dipilih`;
+          }
       });
 
       scene.addEventListener('ar-hit-test-failed', () => {
