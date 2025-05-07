@@ -307,15 +307,53 @@
               });
       }
 
-      const reticle = document.getElementById('reticle');
+      // Hapus variabel reticle
+      // const reticle = document.getElementById('reticle');
       
+      // Update event listener hit-test
+      scene.addEventListener('ar-hit-test-achieved', (evt) => {
+          console.log('Hit test berhasil:', evt.detail);
+          hitTestPosition = evt.detail;
+          statusDiv.textContent = "Permukaan terdeteksi. Tap untuk menempatkan objek.";
+      });
+      
+      // Update fungsi newObject
+      function newObject(data) {
+          if (!data.detail || !data.detail.position) {
+              console.error('Invalid position data:', data);
+              return;
+          }
+
+          if (currentEntity) {
+              currentEntity.parentNode.removeChild(currentEntity);
+          }
+
+          var entity = document.createElement('a-entity');
+          entity.setAttribute('gltf-model', models[currentModelIndex]);
+          entity.setAttribute('scale', '0.1 0.1 0.1');
+          entity.setAttribute('shadow', 'cast: true; receive: true');
+          entity.setAttribute('position', data.detail.position);
+          entity.setAttribute('class', 'clickable');
+          
+          scene.appendChild(entity);
+          currentEntity = entity;
+          
+          initialARPosition = data.detail.position;
+          initialARRotation = entity.getAttribute('rotation');
+          initialARScale = entity.getAttribute('scale');
+          
+          previousScale = null;
+          previousLandmarks = null;
+          
+          statusDiv.textContent = `Model ${currentModelIndex + 1} ditempatkan. Gunakan gerakan tangan untuk mengontrol.`;
+      }
+
       scene.addEventListener('enter-vr', function () {
           console.log("AR session started");
           arSessionActive = true;
           statusDiv.textContent = "AR active. Looking for surface...";
           canvasElement.style.display = "block";
           canvasElement.style.opacity = "1";
-          reticle.style.display = "block"; // Tampilkan reticle
           
           setTimeout(() => {
               handTrackingActive = true;
