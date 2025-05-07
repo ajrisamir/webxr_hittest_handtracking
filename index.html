@@ -10,7 +10,8 @@
     <!-- Add MediaPipe libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <!-- Di bagian head, tambahkan script berikut -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <style>
       body { margin: 0; overflow: hidden; touch-action: none; }
       video { display: none; }  /* Hide video completely */
@@ -149,55 +150,54 @@
       let handTracker = null;
 
       function initializeHandTracking() {
-          if (handTracker) return; // Prevent multiple initializations
+          if (handTracker) {
+              handTracker.close(); // Tutup instance sebelumnya jika ada
+              handTracker = null;
+          }
 
           handTracker = new Hands({
               locateFile: (file) => {
-                  return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                  return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`;
               }
           });
 
           handTracker.setOptions({
               maxNumHands: 1,
-              modelComplexity: 0,
+              modelComplexity: 1,
               minDetectionConfidence: 0.5,
               minTrackingConfidence: 0.5
           });
 
           handTracker.onResults(onResults);
 
-          navigator.mediaDevices.getUserMedia({
-              video: {
-                  facingMode: { exact: "environment" },
-                  width: { ideal: 640 },
-                  height: { ideal: 480 }
-              }
-          }).then(stream => {
-              videoElement.srcObject = stream;
-              videoElement.play();
-              
-              function processFrame() {
-                  if (handTrackingActive && videoElement.readyState === 4) {
-                      handTracker.send({ image: videoElement })
-                          .catch(err => console.error("Hand tracking error:", err));
+          // Gunakan Camera API yang lebih sederhana
+          const camera = new Camera(videoElement, {
+              onFrame: async () => {
+                  if (handTrackingActive) {
+                      try {
+                          await handTracker.send({image: videoElement});
+                      } catch (error) {
+                          console.error('Hand tracking error:', error);
+                      }
                   }
-                  if (arSessionActive) {
-                      requestAnimationFrame(processFrame);
-                  }
-              }
-              processFrame();
-          }).catch(err => {
-              console.error("Camera error:", err);
-              statusDiv.textContent = "Camera error: " + err.message;
+              },
+              width: 640,
+              height: 480,
+              facingMode: 'environment'
           });
+
+          camera.start()
+              .then(() => {
+                  console.log('Camera started successfully');
+                  statusDiv.textContent = "Hand tracking active";
+              })
+              .catch((error) => {
+                  console.error('Error starting camera:', error);
+                  statusDiv.textContent = "Camera error: " + error.message;
+              });
       }
 
-      // Bersihkan event listeners yang ada
-      Object.keys(scene._events || {}).forEach(event => {
-          scene._events[event] = [];
-      });
-
-      // Set event listeners baru
+      // Perbaikan event listener enter-vr
       scene.addEventListener('enter-vr', function () {
           console.log("AR session started");
           arSessionActive = true;
@@ -205,10 +205,15 @@
           canvasElement.style.display = "block";
           canvasElement.style.opacity = "1";
           
-          setTimeout(() => {
-              handTrackingActive = true;
-              initializeHandTracking();
-          }, 1000);
+          // Tunggu sampai AR session benar-benar siap
+          scene.renderer.xr.addEventListener('sessionstart', () => {
+              setTimeout(() => {
+                  if (!handTrackingActive) {
+                      handTrackingActive = true;
+                      initializeHandTracking();
+                  }
+              }, 1000);
+          });
       });
 
       scene.addEventListener('exit-vr', function () {
