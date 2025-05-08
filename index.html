@@ -109,6 +109,8 @@
             createFallbackObject();
         });
 
+        var autoRotate = true; // tambahkan variabel untuk kontrol rotasi otomatis
+
         var newObject = function(data) {
             if (currentEntity) {
                 scene.removeChild(currentEntity);
@@ -123,6 +125,20 @@
 
                 entity.object3D.scale.set(currentScale, currentScale, currentScale);
                 entity.object3D.rotation.y = THREE.MathUtils.degToRad(currentRotation);
+
+                // Mulai rotasi otomatis setelah model dimuat
+                if (autoRotate) {
+                    let rotationAngle = currentRotation;
+                    function animate() {
+                        if (entity.parentNode) { // cek apakah objek masih ada di scene
+                            rotationAngle = (rotationAngle + 1) % 360;
+                            entity.object3D.rotation.y = THREE.MathUtils.degToRad(rotationAngle);
+                            rotationSlider.value = rotationAngle; // update nilai slider
+                            requestAnimationFrame(animate);
+                        }
+                    }
+                    animate();
+                }
             });
 
             scene.appendChild(entity);
