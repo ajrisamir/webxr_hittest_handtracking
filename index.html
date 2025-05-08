@@ -115,6 +115,8 @@
 
         var autoRotate = true; // tambahkan variabel untuk kontrol rotasi otomatis
 
+        var autoRotateToggle = document.getElementById('autoRotateToggle');
+
         var newObject = function(data) {
             if (currentEntity) {
                 scene.removeChild(currentEntity);
@@ -122,27 +124,22 @@
 
             var entity = data.detail;
             entity.setAttribute('gltf-model', models[currentModelIndex]);
+            
+            // Tambahkan komponen animation untuk rotasi
+            entity.setAttribute('animation__rotate', {
+                property: 'rotation',
+                dur: 10000, // 10 detik per putaran
+                easing: 'linear',
+                loop: true,
+                to: '0 360 0'
+            });
 
             entity.addEventListener('model-loaded', () => {
                 const currentScale = parseFloat(scaleSlider.value);
-                const currentRotation = parseFloat(rotationSlider.value);
-
                 entity.object3D.scale.set(currentScale, currentScale, currentScale);
-                entity.object3D.rotation.y = THREE.MathUtils.degToRad(currentRotation);
-
-                // Mulai rotasi otomatis setelah model dimuat
-                if (autoRotate) {
-                    let rotationAngle = currentRotation;
-                    function animate() {
-                        if (entity.parentNode) { // cek apakah objek masih ada di scene
-                            rotationAngle = (rotationAngle + 1) % 360;
-                            entity.object3D.rotation.y = THREE.MathUtils.degToRad(rotationAngle);
-                            rotationSlider.value = rotationAngle; // update nilai slider
-                            requestAnimationFrame(animate);
-                        }
-                    }
-                    animate();
-                }
+                
+                // Atur visibilitas animasi berdasarkan checkbox
+                updateRotationAnimation(entity);
             });
 
             scene.appendChild(entity);
@@ -150,11 +147,28 @@
             currentModelIndex = (currentModelIndex + 1) % models.length;
         }
 
+        function updateRotationAnimation(entity) {
+            if (autoRotateToggle.checked) {
+                entity.setAttribute('animation__rotate', 'enabled', true);
+            } else {
+                entity.setAttribute('animation__rotate', 'enabled', false);
+            }
+        }
+
+        autoRotateToggle.addEventListener('change', function(e) {
+            if (currentEntity) {
+                updateRotationAnimation(currentEntity);
+            }
+        });
+
         rotationSlider.addEventListener('input', function(e) {
             if (currentEntity) {
+                // Hentikan animasi saat menggunakan slider
+                currentEntity.setAttribute('animation__rotate', 'enabled', false);
+                autoRotateToggle.checked = false;
+                
                 const rotation = parseFloat(e.target.value);
-                currentEntity.object3D.rotation.y = THREE.MathUtils.degToRad(rotation);
-                currentEntity.object3D.updateMatrixWorld();
+                currentEntity.setAttribute('rotation', `0 ${rotation} 0`);
             }
         });
 
