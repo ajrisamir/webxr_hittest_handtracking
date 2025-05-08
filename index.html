@@ -116,17 +116,13 @@
 
             var entity = data.detail;
             entity.setAttribute('gltf-model', models[currentModelIndex]);
-            
-            // Set initial rotation and scale
-            const currentScale = parseFloat(scaleSlider.value);
-            const currentRotation = parseFloat(rotationSlider.value);
-            
-            entity.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
-            entity.setAttribute('rotation', `0 ${currentRotation} 0`);
-            
-            entity.setAttribute('material', {
-                shader: 'standard',
-                fog: false
+
+            entity.addEventListener('model-loaded', () => {
+                const currentScale = parseFloat(scaleSlider.value);
+                const currentRotation = parseFloat(rotationSlider.value);
+
+                entity.object3D.scale.set(currentScale, currentScale, currentScale);
+                entity.object3D.rotation.y = THREE.MathUtils.degToRad(currentRotation);
             });
 
             scene.appendChild(entity);
@@ -137,7 +133,8 @@
         rotationSlider.addEventListener('input', function(e) {
             if (currentEntity) {
                 const rotation = parseFloat(e.target.value);
-                currentEntity.setAttribute('rotation', `0 ${rotation} 0`);
+                currentEntity.object3D.rotation.y = THREE.MathUtils.degToRad(rotation);
+                currentEntity.object3D.updateMatrixWorld();
             }
         });
 
