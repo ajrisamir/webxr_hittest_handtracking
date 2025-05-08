@@ -33,7 +33,7 @@
     </style>
 </head>
 <body>
-    <a-scene hit-test="requiredFeatures: hit-test">
+    <a-scene hit-test="requiredFeatures: hit-test,dom-overlay; domOverlay: true">
         <a-assets timeout="10000">
             <a-asset-item id="model1" src="./model1.glb"></a-asset-item>
             <a-asset-item id="model2" src="./model2.glb"></a-asset-item>
@@ -45,16 +45,17 @@
         </a-assets>
 
         <a-entity id="surface-marker" visible="false">
-            <a-circle position="0 0.01 0"
-                      rotation="-90 0 0"
-                      radius="0.15"
-                      material="shader: flat; color: #00ff00; opacity: 1"
-                      animation="property: scale; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
-            </a-circle>
+            <a-ring position="0 0.01 0"
+                   rotation="-90 0 0"
+                   radius-inner="0.1"
+                   radius-outer="0.15"
+                   material="shader: flat; color: #00ff00; opacity: 1"
+                   animation="property: scale; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
+            </a-ring>
             <a-circle position="0 0 0"
                       rotation="-90 0 0"
-                      radius="0.2"
-                      material="shader: flat; color: #ffffff; opacity: 0.8">
+                      radius="0.08"
+                      material="shader: flat; color: #ffffff; opacity: 0.9">
             </a-circle>
         </a-entity>
     </a-scene>
@@ -117,35 +118,24 @@
 
             var entity = data.detail;
             entity.setAttribute('gltf-model', models[currentModelIndex]);
-            entity.setAttribute('scale', '1 1 1');
-            entity.setAttribute('rotation', '0 0 0'); // Reset rotasi
+            entity.setAttribute('scale', scaleSlider.value + ' ' + scaleSlider.value + ' ' + scaleSlider.value);
+            entity.setAttribute('rotation', '0 ' + rotationSlider.value + ' 0');
             entity.setAttribute('material', {
                 shader: 'standard',
                 fog: false
-            });
+            });     
 
             scene.appendChild(entity);
             currentEntity = entity;
-
+            
             currentModelIndex = (currentModelIndex + 1) % models.length;
-
-            // Reset slider values
-            rotationSlider.value = 0;
-            scaleSlider.value = 1;
         }
 
         rotationSlider.addEventListener('input', function(e) {
             if (currentEntity) {
                 const rotation = e.target.value;
-                const currentRotation = currentEntity.getAttribute('rotation');
-                currentEntity.setAttribute('rotation', {
-                    x: currentRotation.x,
-                    y: rotation,
-                    z: currentRotation.z
-                });
-                console.log('Rotasi diubah menjadi:', rotation); // Tambahkan log untuk perubahan rotasi
-            } else {
-                console.log('Tidak ada entitas yang dapat dirotasi.');
+                currentEntity.setAttribute('rotation', `0 ${rotation} 0`);
+                console.log('Rotation updated:', rotation);
             }
         });
 
