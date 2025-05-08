@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
     <title>A-Frame / WebXR / AR / Hit Test</title>
     <meta name="description" content="Hello, WebVR! - A-Frame">
     <script src='./aframe-master.js'></script>
@@ -33,31 +33,30 @@
     </style>
 </head>
 <body>
-    <a-scene hit-test>
-      <a-assets timeout="10000">
-        <a-asset-item id="model1" src="./model1.glb"></a-asset-item>
-        <a-asset-item id="model2" src="./model2.glb"></a-asset-item>
-        <a-asset-item id="model3" src="./model3.glb"></a-asset-item>
-        <a-asset-item id="model4" src="./model4.glb"></a-asset-item>
-        <a-asset-item id="model5" src="./model5.glb"></a-asset-item>
-        <a-asset-item id="model6" src="./model6.glb"></a-asset-item>
-        <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
-      </a-assets>
-      
-      <!-- Add reticle and surface indicator -->
-      <a-entity id="surface-marker" visible="false">
-        <a-circle position="0 0.01 0" 
-                 rotation="-90 0 0" 
-                 radius="0.15" 
-                 material="shader: flat; color: #00ff00; opacity: 1"
-                 animation="property: scale; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
-        </a-circle>
-        <a-circle position="0 0 0" 
-                 rotation="-90 0 0" 
-                 radius="0.2" 
-                 material="shader: flat; color: #ffffff; opacity: 0.8">
-        </a-circle>
-      </a-entity>
+    <a-scene hit-test="requiredFeatures: hit-test">
+        <a-assets timeout="10000">
+            <a-asset-item id="model1" src="./model1.glb"></a-asset-item>
+            <a-asset-item id="model2" src="./model2.glb"></a-asset-item>
+            <a-asset-item id="model3" src="./model3.glb"></a-asset-item>
+            <a-asset-item id="model4" src="./model4.glb"></a-asset-item>
+            <a-asset-item id="model5" src="./model5.glb"></a-asset-item>
+            <a-asset-item id="model6" src="./model6.glb"></a-asset-item>
+            <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
+        </a-assets>
+
+        <a-entity id="surface-marker" visible="false">
+            <a-circle position="0 0.01 0"
+                      rotation="-90 0 0"
+                      radius="0.15"
+                      material="shader: flat; color: #00ff00; opacity: 1"
+                      animation="property: scale; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
+            </a-circle>
+            <a-circle position="0 0 0"
+                      rotation="-90 0 0"
+                      radius="0.2"
+                      material="shader: flat; color: #ffffff; opacity: 0.8">
+            </a-circle>
+        </a-entity>
     </a-scene>
 
     <div class="controls">
@@ -72,101 +71,112 @@
     </div>
 
     <script>
-      var scene = AFRAME.scenes[0];
-      var currentModelIndex = 0;
-      var currentEntity = null;
-      const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
-      var surfaceMarker = document.querySelector('#surface-marker');
+        var scene = AFRAME.scenes[0];
+        var currentModelIndex = 0;
+        var currentEntity = null;
+        const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
+        var surfaceMarker = document.querySelector('#surface-marker');
+        var rotationSlider = document.getElementById('rotationSlider');
+        var scaleSlider = document.getElementById('scaleSlider');
 
-      // Add hit test update handler
-      scene.addEventListener('hit-test-update', function (evt) {
-        if (evt.detail.position) {
-          surfaceMarker.setAttribute('position', evt.detail.position);
-          surfaceMarker.setAttribute('visible', true);
-        } else {
-          surfaceMarker.setAttribute('visible', false);
-        }
-      });
+        // Pastikan komponen hit-test sudah diinisialisasi sebelum menambahkan listener
+        scene.addEventListener('loaded', function () {
+            // Add hit test update handler
+            scene.addEventListener('hit-test-update', function (evt) {
+                console.log('hit-test-update', evt.detail); // Tambahkan log untuk melihat detail hit test
 
-      // Prevent hit test on UI controls
-      document.querySelector('.controls').addEventListener('touchstart', function(e) {
-        e.stopPropagation();
-      }, true);
+                if (evt.detail.position) {
+                    surfaceMarker.setAttribute('position', evt.detail.position);
+                    surfaceMarker.setAttribute('visible', true);
+                } else {
+                    surfaceMarker.setAttribute('visible', false);
+                }
+            });
 
-      var modelAsset = document.querySelector('#model1');
-      modelAsset.addEventListener('error', function(e) {
-        console.error('Error loading model:', e);
-        createFallbackObject();
-      });
-
-      var rotationSlider = document.getElementById('rotationSlider');
-      var scaleSlider = document.getElementById('scaleSlider');
-
-      var newObject = function(data) {
-        if (currentEntity) {
-          scene.removeChild(currentEntity);
-        }
-
-        var entity = data.detail;
-        entity.setAttribute('gltf-model', models[currentModelIndex]);
-        entity.setAttribute('scale', '1 1 1');
-        entity.setAttribute('rotation', '0 0 0'); // Reset rotasi
-        entity.setAttribute('material', {
-          shader: 'standard',
-          fog: false
-        });     
-
-        scene.appendChild(entity);
-        currentEntity = entity;
-        
-        currentModelIndex = (currentModelIndex + 1) % models.length;
-
-        // Reset slider values
-        rotationSlider.value = 0;
-        scaleSlider.value = 1;
-      }
-
-      rotationSlider.addEventListener('input', function(e) {
-        if (currentEntity) {
-          const rotation = e.target.value;
-          const currentRotation = currentEntity.getAttribute('rotation');
-          currentEntity.setAttribute('rotation', {
-              x: currentRotation.x,
-              y: rotation,
-              z: currentRotation.z
-          });
-        }
-      });
-
-      scaleSlider.addEventListener('input', function(e) {
-        if (currentEntity) {
-          const scale = e.target.value;
-          currentEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
-        }
-      });
-
-      function createFallbackObject(data) {
-        if (currentEntity) {
-          scene.removeChild(currentEntity);
-        }
-
-        var entity = data.detail;
-        entity.setAttribute('geometry', {
-          primitive: 'box',
-          width: 0.1,
-          height: 0.1,
-          depth: 0.1
+            scene.addEventListener('newAnchoredEntity', function (evt) {
+                console.log('newAnchoredEntity', evt.detail); // Tambahkan log saat entitas baru ditambahkan
+                newObject(evt);
+            });
         });
-        entity.setAttribute('material', {
-          color: 'red'
-        });
-        scene.appendChild(entity);
-        currentEntity = entity;
-      }
 
-      scene.addEventListener('newAnchoredEntity', newObject);
+        // Prevent hit test on UI controls
+        document.querySelector('.controls').addEventListener('touchstart', function(e) {
+            e.stopPropagation();
+        }, true);
+
+        var modelAsset = document.querySelector('#model1');
+        modelAsset.addEventListener('error', function(e) {
+            console.error('Error loading model:', e);
+            createFallbackObject();
+        });
+
+        var newObject = function(data) {
+            if (currentEntity) {
+                scene.removeChild(currentEntity);
+            }
+
+            var entity = data.detail;
+            entity.setAttribute('gltf-model', models[currentModelIndex]);
+            entity.setAttribute('scale', '1 1 1');
+            entity.setAttribute('rotation', '0 0 0'); // Reset rotasi
+            entity.setAttribute('material', {
+                shader: 'standard',
+                fog: false
+            });
+
+            scene.appendChild(entity);
+            currentEntity = entity;
+
+            currentModelIndex = (currentModelIndex + 1) % models.length;
+
+            // Reset slider values
+            rotationSlider.value = 0;
+            scaleSlider.value = 1;
+        }
+
+        rotationSlider.addEventListener('input', function(e) {
+            if (currentEntity) {
+                const rotation = e.target.value;
+                const currentRotation = currentEntity.getAttribute('rotation');
+                currentEntity.setAttribute('rotation', {
+                    x: currentRotation.x,
+                    y: rotation,
+                    z: currentRotation.z
+                });
+                console.log('Rotasi diubah menjadi:', rotation); // Tambahkan log untuk perubahan rotasi
+            } else {
+                console.log('Tidak ada entitas yang dapat dirotasi.');
+            }
+        });
+
+        scaleSlider.addEventListener('input', function(e) {
+            if (currentEntity) {
+                const scale = e.target.value;
+                currentEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+                console.log('Skala diubah menjadi:', scale); // Tambahkan log untuk perubahan skala
+            } else {
+                console.log('Tidak ada entitas yang dapat diskalakan.');
+            }
+        });
+
+        function createFallbackObject(data) {
+            if (currentEntity) {
+                scene.removeChild(currentEntity);
+            }
+
+            var entity = data.detail;
+            entity.setAttribute('geometry', {
+                primitive: 'box',
+                width: 0.1,
+                height: 0.1,
+                depth: 0.1
+            });
+            entity.setAttribute('material', {
+                color: 'red'
+            });
+            scene.appendChild(entity);
+            currentEntity = entity;
+        }
     </script>
-  </body>
+</body>
 </html>
-
-
