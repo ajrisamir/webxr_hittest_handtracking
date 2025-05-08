@@ -50,7 +50,8 @@
     <canvas id="output_canvas"></canvas>
 
     <a-scene
-      hit-test="doHitTest: true; hitTestNoAnchor: true"
+      webxr="optionalFeatures: hit-test, local-floor, bounded-floor, hand-tracking;"
+      ar-hit-test="target:#my-target; type: footprint;"
       cursor="rayOrigin: mouse; fuse: false"
       raycaster="objects: .clickable"
       embedded
@@ -64,6 +65,10 @@
         <a-asset-item id="model6" src="./model6.glb"></a-asset-item>
         <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
       </a-assets>
+      <a-entity id="my-target" visible="false">
+        <a-circle radius="0.1" color="#FF0000" rotation="-90 0 0"></a-circle>
+      </a-entity>
+      
       <a-entity camera position="0 1.6 0"></a-entity>
     </a-scene>
 
@@ -180,10 +185,14 @@
           if (!supported) throw new Error("AR tidak didukung");
 
           const session = await navigator.xr.requestSession('immersive-ar', {
-            requiredFeatures: ['hit-test', 'local-floor'],
-            optionalFeatures: ['dom-overlay', 'hand-tracking'],
+            requiredFeatures: ['hit-test', 'local-floor', 'hand-tracking'],
+            optionalFeatures: ['dom-overlay'],
             domOverlay: { root: document.body }
           });
+
+          // Tambahkan konfigurasi hand tracking
+          const handTrackingFeature = await session.requestReferenceSpace('local');
+          const handJointSpaces = await session.requestHandTracking();
 
           const gl = document.createElement('canvas').getContext('webgl', { 
             xrCompatible: true,
@@ -248,20 +257,34 @@
             if (!frame) return;
 
             const pose = frame.getViewerPose(refSpace);
-            if (pose && hitTestSource) {
-              const results = frame.getHitTestResults(hitTestSource);
-              if (results.length > 0) {
-                const hit = results[0];
-                const pos = hit.getPose(refSpace).transform.position;
-                hitTestPosition = { x: pos.x, y: pos.y, z: pos.z };
-                statusDiv.textContent = "Permukaan ditemukan, ketuk untuk menempatkan objek.";
+            if (pose) {
+              // Deteksi tangan
+              const hands = frame.getHands();
+              if (hands && hands.length > 0) {
+                const hand = hands[0];
+                if (hand.joints['index-finger-tip'] && hand.joints['thumb-tip']) {
+                  const indexTip = hand.joints['index-finger-tip'].pose;
+                  const thumbTip = hand.joints['thumb-tip'].pose;
+                  updateObjectTransform(indexTip.transform, thumbTip.transform);
+                }
+              }
+
+              // Hit test
+              if (hitTestSource) {
+                const results = frame.getHitTestResults(hitTestSource);
+                if (results.length > 0) {
+                  const hit = results[0];
+                  const pos = hit.getPose(refSpace).transform.position;
+                  hitTestPosition = { x: pos.x, y: pos.y, z: pos.z };
+                  statusDiv.textContent = "Permukaan ditemukan, ketuk untuk menempatkan objek.";
+                }
               }
             }
           });
 
           return true;
         } catch (error) {
-          statusDiv.textContent = "XR Session Error: " + error.message;
+          statusDiv.textContent = "Error: " + error.message;
           return false;
         }
       }
@@ -305,6 +328,39 @@
         }
       });
     </script>
+    <script>
+    AFRAME.registerComponent('ar-hit-test-handler', {
+      init: function () {
+        this.el.sceneEl.addEventListener('ar-hit-test-select', () => {
+          if (!currentEntity) {
+            const entity = document.createElement('a-entity');
+            entity.setAttribute('gltf-model', models[currentModelIndex]);
+            entity.setAttribute('scale', '0.1 0.1 0.1');
+            entity.setAttribute('shadow', 'cast: true; receive: true');
+            entity.setAttribute('class', 'clickable');
+            
+            const targetEl = document.querySelector('#my-target');
+            const position = targetEl.getAttribute('position');
+            entity.setAttribute('position', position);
+            
+            scene.appendChild(entity);
+            currentEntity = entity;
+            initialARPosition = position;
+            initialARRotation = entity.getAttribute('rotation');
+            initialARScale = entity.getAttribute('scale');
+            
+            handTrackingActive = true;
+            initializeHandTracking();
+            
+            statusDiv.textContent = `Model ${currentModelIndex + 1} ditempatkan.`;
+          }
+        });
+      }
+    });
+    
+    // Tambahkan komponen ke scene
+    scene.setAttribute('ar-hit-test-handler', '');
+  </script>
   </body>
 </html>
 
