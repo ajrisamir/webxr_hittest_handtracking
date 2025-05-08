@@ -204,6 +204,45 @@
           xrRefSpace = refSpace;
           xrHitTestActive = true;
 
+          scene.addEventListener('enter-vr', async () => {
+            try {
+              arSessionActive = true;
+              statusDiv.textContent = "Memulai AR...";
+              
+              const success = await initXRSession();
+              if (success) {
+                canvasElement.style.display = "block";
+                statusDiv.textContent = "AR aktif. Arahkan kamera ke permukaan datar...";
+              }
+            } catch (error) {
+              console.error('Error saat masuk mode AR:', error);
+              statusDiv.textContent = "Error: " + error.message;
+            }
+          });
+
+          scene.addEventListener('exit-vr', () => {
+            arSessionActive = false;
+            handTrackingActive = false;
+            if (handTracker) {
+              handTracker.close();
+            }
+            statusDiv.textContent = "AR dinonaktifkan";
+          });
+
+          // Tambahkan event listener untuk hit-test
+          scene.addEventListener('ar-hit-test-start', () => {
+            statusDiv.textContent = "Mencari permukaan datar...";
+          });
+
+          scene.addEventListener('ar-hit-test-achieved', (evt) => {
+            hitTestPosition = evt.detail.position;
+            statusDiv.textContent = "Permukaan ditemukan! Ketuk untuk menempatkan objek";
+          });
+
+          scene.addEventListener('ar-hit-test-failed', () => {
+            hitTestPosition = null;
+            statusDiv.textContent = "Tidak menemukan permukaan. Coba arahkan ke area yang lebih datar";
+          });
           session.requestAnimationFrame(function onXRFrame(time, frame) {
             session.requestAnimationFrame(onXRFrame);
             if (!frame) return;
