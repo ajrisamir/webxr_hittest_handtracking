@@ -125,89 +125,47 @@
             var entity = data.detail;
             entity.setAttribute('gltf-model', models[currentModelIndex]);
             
-            // Tambahkan komponen untuk rotasi
-            entity.setAttribute('animation-mixer', '');
-            entity.setAttribute('rotation', '0 0 0');
-
-            let rotationInterval;
+            // Simpan referensi ke object3D
+            let object3D;
+            let isRotating = autoRotateToggle.checked;
             
-            function startAutoRotate() {
-                if (rotationInterval) clearInterval(rotationInterval);
-                rotationInterval = setInterval(() => {
-                    if (!entity) return;
-                    let currentRotation = entity.getAttribute('rotation');
-                    entity.setAttribute('rotation', {
-                        x: currentRotation.x,
-                        y: (currentRotation.y + 1) % 360,
-                        z: currentRotation.z
-                    });
-                }, 50);
-            }
-
-            function stopAutoRotate() {
-                if (rotationInterval) {
-                    clearInterval(rotationInterval);
-                    rotationInterval = null;
-                }
-            }
-
-            // Mulai rotasi otomatis jika checkbox dicentang
-            if (autoRotateToggle.checked) {
-                startAutoRotate();
-            }
-
-            // Update event listener untuk checkbox
-            autoRotateToggle.onchange = function() {
-                if (this.checked) {
-                    startAutoRotate();
-                } else {
-                    stopAutoRotate();
-                }
-            };
-
-            // Update event listener untuk slider rotasi
-            rotationSlider.oninput = function() {
-                stopAutoRotate();
-                autoRotateToggle.checked = false;
-                entity.setAttribute('rotation', `0 ${this.value} 0`);
-            };
-
             entity.addEventListener('model-loaded', () => {
+                object3D = entity.object3D;
                 const currentScale = parseFloat(scaleSlider.value);
-                entity.object3D.scale.set(currentScale, currentScale, currentScale);
+                object3D.scale.set(currentScale, currentScale, currentScale);
+                
+                // Mulai animasi frame
+                function animate() {
+                    if (isRotating && object3D) {
+                        object3D.rotation.y += 0.02;
+                    }
+                    requestAnimationFrame(animate);
+                }
+                animate();
             });
+
+            // Event listener untuk checkbox
+            autoRotateToggle.onchange = function() {
+                isRotating = this.checked;
+            };
+
+            // Event listener untuk slider
+            rotationSlider.oninput = function() {
+                if (object3D) {
+                    isRotating = false;
+                    autoRotateToggle.checked = false;
+                    object3D.rotation.y = THREE.MathUtils.degToRad(parseFloat(this.value));
+                }
+            };
 
             scene.appendChild(entity);
             currentEntity = entity;
             currentModelIndex = (currentModelIndex + 1) % models.length;
         }
 
-        // Hapus atau komentar fungsi updateRotationAnimation yang lama
-        autoRotateToggle.addEventListener('change', function(e) {
-            if (currentEntity) {
-                updateRotationAnimation(currentEntity);
-            }
-        });
-
-        rotationSlider.addEventListener('input', function(e) {
-            if (currentEntity) {
-                // Hentikan animasi saat menggunakan slider
-                currentEntity.setAttribute('animation__rotate', 'enabled', false);
-                autoRotateToggle.checked = false;
-                
-                const rotation = parseFloat(e.target.value);
-                currentEntity.setAttribute('rotation', `0 ${rotation} 0`);
-            }
-        });
-
-        scaleSlider.addEventListener('input', function(e) {
-            if (currentEntity) {
-                const scale = parseFloat(e.target.value);
-                currentEntity.object3D.scale.set(scale, scale, scale);
-                currentEntity.object3D.updateMatrixWorld();
-            }
-        });
-        
+        // Hapus semua event listener lama yang tidak digunakan
+        autoRotateToggle.removeEventListener('change', function(){});
+        rotationSlider.removeEventListener('input', function(){});
     </script>
 </body>
 </html>
