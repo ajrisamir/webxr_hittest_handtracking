@@ -44,19 +44,20 @@
             <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
         </a-assets>
 
-        <a-entity id="surface-marker" visible="false">
-            <a-ring position="0 0.01 0"
-                   rotation="-90 0 0"
-                   radius-inner="0.1"
-                   radius-outer="0.15"
-                   material="shader: flat; color: #00ff00; opacity: 1"
-                   animation="property: scale; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
+        <a-entity id="surface-marker">
+            <a-cylinder position="0 0 0"
+                        rotation="-90 0 0"
+                        radius="0.15"
+                        height="0.001"
+                        material="shader: flat; color: #00ff00; opacity: 0.8"
+                        animation="property: material.opacity; from: 0.8; to: 0.4; dur: 1000; dir: alternate; loop: true">
+            </a-cylinder>
+            <a-ring position="0 0.002 0"
+                    rotation="-90 0 0"
+                    radius-inner="0.14"
+                    radius-outer="0.15"
+                    material="shader: flat; color: #ffffff; opacity: 1">
             </a-ring>
-            <a-circle position="0 0 0"
-                      rotation="-90 0 0"
-                      radius="0.08"
-                      material="shader: flat; color: #ffffff; opacity: 0.9">
-            </a-circle>
         </a-entity>
     </a-scene>
 
@@ -80,27 +81,23 @@
         var rotationSlider = document.getElementById('rotationSlider');
         var scaleSlider = document.getElementById('scaleSlider');
 
-        // Pastikan komponen hit-test sudah diinisialisasi sebelum menambahkan listener
         scene.addEventListener('loaded', function () {
-            // Add hit test update handler
             scene.addEventListener('hit-test-update', function (evt) {
-                console.log('hit-test-update', evt.detail); // Tambahkan log untuk melihat detail hit test
-
                 if (evt.detail.position) {
-                    surfaceMarker.setAttribute('position', evt.detail.position);
-                    surfaceMarker.setAttribute('visible', true);
+                    surfaceMarker.object3D.position.copy(evt.detail.position);
+                    surfaceMarker.object3D.visible = true;
+                    surfaceMarker.object3D.updateMatrixWorld();
                 } else {
-                    surfaceMarker.setAttribute('visible', false);
+                    surfaceMarker.object3D.visible = false;
                 }
             });
 
             scene.addEventListener('newAnchoredEntity', function (evt) {
-                console.log('newAnchoredEntity', evt.detail); // Tambahkan log saat entitas baru ditambahkan
+                console.log('newAnchoredEntity', evt.detail);
                 newObject(evt);
             });
         });
 
-        // Prevent hit test on UI controls
         document.querySelector('.controls').addEventListener('touchstart', function(e) {
             e.stopPropagation();
         }, true);
@@ -118,55 +115,42 @@
 
             var entity = data.detail;
             entity.setAttribute('gltf-model', models[currentModelIndex]);
-            entity.setAttribute('scale', scaleSlider.value + ' ' + scaleSlider.value + ' ' + scaleSlider.value);
-            entity.setAttribute('rotation', '0 ' + rotationSlider.value + ' 0');
             entity.setAttribute('material', {
                 shader: 'standard',
                 fog: false
-            });     
+            });
+
+            entity.addEventListener('model-loaded', () => {
+                const currentScale = parseFloat(scaleSlider.value);
+                const currentRotation = parseFloat(rotationSlider.value);
+
+                entity.object3D.scale.set(currentScale, currentScale, currentScale);
+                entity.object3D.rotation.y = THREE.MathUtils.degToRad(currentRotation);
+            });
 
             scene.appendChild(entity);
             currentEntity = entity;
-            
             currentModelIndex = (currentModelIndex + 1) % models.length;
         }
 
         rotationSlider.addEventListener('input', function(e) {
             if (currentEntity) {
-                const rotation = e.target.value;
-                currentEntity.setAttribute('rotation', `0 ${rotation} 0`);
-                console.log('Rotation updated:', rotation);
+                const rotation = parseFloat(e.target.value);
+                currentEntity.object3D.rotation.y = THREE.MathUtils.degToRad(rotation);
+                currentEntity.object3D.updateMatrixWorld();
             }
         });
 
         scaleSlider.addEventListener('input', function(e) {
             if (currentEntity) {
-                const scale = e.target.value;
-                currentEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
-                console.log('Skala diubah menjadi:', scale); // Tambahkan log untuk perubahan skala
-            } else {
-                console.log('Tidak ada entitas yang dapat diskalakan.');
+                const scale = parseFloat(e.target.value);
+                currentEntity.object3D.scale.set(scale, scale, scale);
+                currentEntity.object3D.updateMatrixWorld();
             }
         });
-
-        function createFallbackObject(data) {
-            if (currentEntity) {
-                scene.removeChild(currentEntity);
-            }
-
-            var entity = data.detail;
-            entity.setAttribute('geometry', {
-                primitive: 'box',
-                width: 0.1,
-                height: 0.1,
-                depth: 0.1
-            });
-            entity.setAttribute('material', {
-                color: 'red'
-            });
-            scene.appendChild(entity);
-            currentEntity = entity;
-        }
+        
     </script>
 </body>
 </html>
+
+
