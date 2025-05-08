@@ -125,26 +125,56 @@
             var entity = data.detail;
             entity.setAttribute('gltf-model', models[currentModelIndex]);
             
-            // Perbaikan animasi rotasi
-            entity.setAttribute('animation__rotate', {
-                property: 'rotation',
-                dur: 10000,
-                easing: 'linear',
-                loop: true,
-                from: '0 0 0',
-                to: '0 360 0',
-                enabled: autoRotateToggle.checked
-            });
+            // Tambahkan komponen untuk rotasi
+            entity.setAttribute('animation-mixer', '');
+            entity.setAttribute('rotation', '0 0 0');
+
+            let rotationInterval;
+            
+            function startAutoRotate() {
+                if (rotationInterval) clearInterval(rotationInterval);
+                rotationInterval = setInterval(() => {
+                    if (!entity) return;
+                    let currentRotation = entity.getAttribute('rotation');
+                    entity.setAttribute('rotation', {
+                        x: currentRotation.x,
+                        y: (currentRotation.y + 1) % 360,
+                        z: currentRotation.z
+                    });
+                }, 50);
+            }
+
+            function stopAutoRotate() {
+                if (rotationInterval) {
+                    clearInterval(rotationInterval);
+                    rotationInterval = null;
+                }
+            }
+
+            // Mulai rotasi otomatis jika checkbox dicentang
+            if (autoRotateToggle.checked) {
+                startAutoRotate();
+            }
+
+            // Update event listener untuk checkbox
+            autoRotateToggle.onchange = function() {
+                if (this.checked) {
+                    startAutoRotate();
+                } else {
+                    stopAutoRotate();
+                }
+            };
+
+            // Update event listener untuk slider rotasi
+            rotationSlider.oninput = function() {
+                stopAutoRotate();
+                autoRotateToggle.checked = false;
+                entity.setAttribute('rotation', `0 ${this.value} 0`);
+            };
 
             entity.addEventListener('model-loaded', () => {
                 const currentScale = parseFloat(scaleSlider.value);
                 entity.object3D.scale.set(currentScale, currentScale, currentScale);
-                
-                // Set rotasi awal
-                const initialRotation = parseFloat(rotationSlider.value);
-                entity.setAttribute('rotation', `0 ${initialRotation} 0`);
-                
-                updateRotationAnimation(entity);
             });
 
             scene.appendChild(entity);
@@ -152,24 +182,7 @@
             currentModelIndex = (currentModelIndex + 1) % models.length;
         }
 
-        function updateRotationAnimation(entity) {
-            if (!entity) return;
-            
-            if (autoRotateToggle.checked) {
-                entity.setAttribute('animation__rotate', {
-                    property: 'rotation',
-                    dur: 10000,
-                    easing: 'linear',
-                    loop: true,
-                    from: `0 ${entity.getAttribute('rotation').y} 0`,
-                    to: `0 ${entity.getAttribute('rotation').y + 360} 0`,
-                    enabled: true
-                });
-            } else {
-                entity.setAttribute('animation__rotate', 'enabled', false);
-            }
-        }
-
+        // Hapus atau komentar fungsi updateRotationAnimation yang lama
         autoRotateToggle.addEventListener('change', function(e) {
             if (currentEntity) {
                 updateRotationAnimation(currentEntity);
