@@ -44,57 +44,36 @@
             <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
         </a-assets>
 
-        <!-- Ubah surface marker -->
-        <!-- Surface marker dengan visual yang lebih jelas -->
+        <!-- Surface marker yang lebih sederhana -->
         <a-entity id="surface-marker" visible="false">
-            <!-- Lingkaran utama -->
-            <a-circle
-                rotation="-90 0 0"
-                radius="0.15"
-                material="shader: flat; color: #00ff00; opacity: 0.5; transparent: true"
-                animation="property: material.opacity; from: 0.5; to: 0.2; dur: 1000; dir: alternate; loop: true">
-            </a-circle>
-            
-            <!-- Grid pattern untuk lebih jelas -->
-            <a-plane
-                rotation="-90 0 0"
-                width="0.3"
-                height="0.3"
-                material="shader: flat; src: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAOElEQVQYV2NkYGD4z4AAVDL///8/GGf///9gxv///0ESjCAGSAJZAkUBTACnBIgPEgAZgKwAbi0AmcELEYi8pN8AAAAASUVORK5CYII=); repeat: true; transparent: true; opacity: 0.3">
-            </a-plane>
-
-            <!-- Ring animasi -->
             <a-ring
+                position="0 0.001 0"
                 rotation="-90 0 0"
-                radius-inner="0.14"
-                radius-outer="0.15"
-                material="shader: flat; color: #ffffff"
-                animation="property: scale; from: 1 1 1; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
+                radius-inner="0.08"
+                radius-outer="0.10"
+                material="shader: flat; color: #FF0000; opacity: 0.8"
+                animation="property: scale; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
             </a-ring>
-
-            <!-- Crosshair -->
-            <a-entity rotation="-90 0 0">
-                <a-plane width="0.01" height="0.05" material="shader: flat; color: white; transparent: true; opacity: 0.8"></a-plane>
-                <a-plane width="0.05" height="0.01" material="shader: flat; color: white; transparent: true; opacity: 0.8"></a-plane>
-            </a-entity>
+            <a-circle
+                position="0 0 0"
+                rotation="-90 0 0"
+                radius="0.05"
+                material="shader: flat; color: #FFFFFF; opacity: 0.5">
+            </a-circle>
         </a-entity>
+    </a-scene>
 
         <script>
             scene.addEventListener('loaded', function () {
                 scene.addEventListener('hit-test-update', function (evt) {
                     if (evt.detail.position) {
-                        surfaceMarker.setAttribute('position', evt.detail.position);
+                        // Pastikan marker terlihat dan posisinya benar
+                        surfaceMarker.object3D.position.copy(evt.detail.position);
+                        surfaceMarker.object3D.updateMatrixWorld(true);
                         surfaceMarker.setAttribute('visible', true);
                         
-                        // Tambahkan rotasi acak untuk efek scanning
-                        surfaceMarker.setAttribute('animation__rotate', {
-                            property: 'rotation.y',
-                            from: 0,
-                            to: 360,
-                            dur: 5000,
-                            loop: true,
-                            easing: 'linear'
-                        });
+                        // Log posisi untuk debugging
+                        console.log('Surface marker position:', evt.detail.position);
                     } else {
                         surfaceMarker.setAttribute('visible', false);
                     }
@@ -181,11 +160,15 @@
         var scaleSlider = document.getElementById('scaleSlider');
 
         scene.addEventListener('loaded', function () {
-            // Perbaikan hit-test-update
             scene.addEventListener('hit-test-update', function (evt) {
                 if (evt.detail.position) {
-                    surfaceMarker.setAttribute('position', evt.detail.position);
+                    // Pastikan marker terlihat dan posisinya benar
+                    surfaceMarker.object3D.position.copy(evt.detail.position);
+                    surfaceMarker.object3D.updateMatrixWorld(true);
                     surfaceMarker.setAttribute('visible', true);
+                    
+                    // Log posisi untuk debugging
+                    console.log('Surface marker position:', evt.detail.position);
                 } else {
                     surfaceMarker.setAttribute('visible', false);
                 }
