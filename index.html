@@ -125,20 +125,25 @@
             var entity = data.detail;
             entity.setAttribute('gltf-model', models[currentModelIndex]);
             
-            // Tambahkan komponen animation untuk rotasi
+            // Perbaikan animasi rotasi
             entity.setAttribute('animation__rotate', {
                 property: 'rotation',
-                dur: 10000, // 10 detik per putaran
+                dur: 10000,
                 easing: 'linear',
                 loop: true,
-                to: '0 360 0'
+                from: '0 0 0',
+                to: '0 360 0',
+                enabled: autoRotateToggle.checked
             });
 
             entity.addEventListener('model-loaded', () => {
                 const currentScale = parseFloat(scaleSlider.value);
                 entity.object3D.scale.set(currentScale, currentScale, currentScale);
                 
-                // Atur visibilitas animasi berdasarkan checkbox
+                // Set rotasi awal
+                const initialRotation = parseFloat(rotationSlider.value);
+                entity.setAttribute('rotation', `0 ${initialRotation} 0`);
+                
                 updateRotationAnimation(entity);
             });
 
@@ -148,8 +153,18 @@
         }
 
         function updateRotationAnimation(entity) {
+            if (!entity) return;
+            
             if (autoRotateToggle.checked) {
-                entity.setAttribute('animation__rotate', 'enabled', true);
+                entity.setAttribute('animation__rotate', {
+                    property: 'rotation',
+                    dur: 10000,
+                    easing: 'linear',
+                    loop: true,
+                    from: `0 ${entity.getAttribute('rotation').y} 0`,
+                    to: `0 ${entity.getAttribute('rotation').y + 360} 0`,
+                    enabled: true
+                });
             } else {
                 entity.setAttribute('animation__rotate', 'enabled', false);
             }
