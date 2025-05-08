@@ -46,12 +46,17 @@
       
       <!-- Add reticle and surface indicator -->
       <a-entity id="surface-marker" visible="false">
-        <a-plane position="0 0 0" 
+        <a-circle position="0 0.01 0" 
                  rotation="-90 0 0" 
-                 width="0.5" 
-                 height="0.5" 
-                 material="shader: flat; opacity: 0.5; color: #00ff00"
-                 animation="property: components.material.material.opacity; from: 0.5; to: 0.8; dur: 1000; dir: alternate; loop: true"></a-plane>
+                 radius="0.15" 
+                 material="shader: flat; color: #00ff00; opacity: 1"
+                 animation="property: scale; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
+        </a-circle>
+        <a-circle position="0 0 0" 
+                 rotation="-90 0 0" 
+                 radius="0.2" 
+                 material="shader: flat; color: #ffffff; opacity: 0.8">
+        </a-circle>
       </a-entity>
     </a-scene>
 
@@ -105,6 +110,7 @@
         var entity = data.detail;
         entity.setAttribute('gltf-model', models[currentModelIndex]);
         entity.setAttribute('scale', '1 1 1');
+        entity.setAttribute('rotation', '0 0 0'); // Reset rotasi
         entity.setAttribute('material', {
           shader: 'standard',
           fog: false
@@ -122,7 +128,13 @@
 
       rotationSlider.addEventListener('input', function(e) {
         if (currentEntity) {
-          currentEntity.setAttribute('rotation', `0 ${e.target.value} 0`);
+          const rotation = e.target.value;
+          const currentRotation = currentEntity.getAttribute('rotation');
+          currentEntity.setAttribute('rotation', {
+              x: currentRotation.x,
+              y: rotation,
+              z: currentRotation.z
+          });
         }
       });
 
