@@ -34,56 +34,82 @@
 </head>
 <body>
     <a-scene hit-test="requiredFeatures: hit-test,dom-overlay; domOverlay: true">
-        <!-- Surface marker yang lebih detail -->
+        <a-assets timeout="10000">
+            <a-asset-item id="model1" src="./model1.glb"></a-asset-item>
+            <a-asset-item id="model2" src="./model2.glb"></a-asset-item>
+            <a-asset-item id="model3" src="./model3.glb"></a-asset-item>
+            <a-asset-item id="model4" src="./model4.glb"></a-asset-item>
+            <a-asset-item id="model5" src="./model5.glb"></a-asset-item>
+            <a-asset-item id="model6" src="./model6.glb"></a-asset-item>
+            <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
+        </a-assets>
+
+        <!-- Ubah surface marker -->
         <a-entity id="surface-marker" visible="false">
-            <!-- Lingkaran utama -->
-            <a-circle
-                rotation="-90 0 0"
-                radius="0.15"
-                segments="64"
-                material="shader: flat; color: #00ff00; opacity: 0.3; transparent: true"
-                animation__pulse="property: scale; from: 1 1 1; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
-            </a-circle>
-            
-            <!-- Ring luar -->
-            <a-ring
-                rotation="-90 0 0"
-                radius-inner="0.14"
-                radius-outer="0.16"
-                material="shader: flat; color: #ffffff; opacity: 0.8">
+            <!-- Main detection circle -->
+            <a-cylinder position="0 0 0"
+                        rotation="-90 0 0"
+                        radius="0.25"
+                        height="0.002"
+                        material="shader: flat; color: #00ff00; opacity: 0.8"
+                        animation="property: material.opacity; from: 0.8; to: 0.5; dur: 1000; dir: alternate; loop: true">
+            </a-cylinder>
+            <!-- Outer ring -->
+            <a-ring position="0 0.003 0"
+                    rotation="-90 0 0"
+                    radius-inner="0.24"
+                    radius-outer="0.26"
+                    material="shader: flat; color: #ffffff; opacity: 0.9">
             </a-ring>
-            
-            <!-- Grid pattern -->
-            <a-entity rotation="-90 0 0">
-                <a-plane
-                    width="0.3"
-                    height="0.3"
-                    material="shader: flat; opacity: 0.2; transparent: true; color: #ffffff"
-                    geometry="primitive: plane; width: 0.3; height: 0.3; segmentsHeight: 4; segmentsWidth: 4">
-                </a-plane>
-            </a-entity>
-            
-            <!-- Crosshair pusat -->
-            <a-entity rotation="-90 0 0" position="0 0.001 0">
-                <a-plane width="0.02" height="0.1" material="shader: flat; color: white; opacity: 0.6"></a-plane>
-                <a-plane width="0.1" height="0.02" material="shader: flat; color: white; opacity: 0.6"></a-plane>
-            </a-entity>
+            <!-- Inner ring -->
+            <a-ring position="0 0.003 0"
+                    rotation="-90 0 0"
+                    radius-inner="0.12"
+                    radius-outer="0.13"
+                    material="shader: flat; color: #ffffff; opacity: 0.9">
+            </a-ring>
+            <!-- Center dot -->
+            <a-cylinder position="0 0.004 0"
+                        rotation="-90 0 0"
+                        radius="0.02"
+                        height="0.002"
+                        material="shader: flat; color: #ffffff; opacity: 1">
+            </a-cylinder>
         </a-entity>
     </a-scene>
 
+    <div class="controls">
+        <div class="slider-container">
+            <label>Rotasi Y</label>
+            <input type="range" id="rotationSlider" min="0" max="360" value="0">
+        </div>
+        <div class="slider-container">
+            <label>Skala</label>
+            <input type="range" id="scaleSlider" min="0.1" max="3" step="0.1" value="1">
+        </div>
+        <div class="slider-container">
+            <label>Auto Rotasi</label>
+            <input type="checkbox" id="autoRotateToggle" checked>
+        </div>
+    </div>
+
     <script>
+        var scene = AFRAME.scenes[0];
+        var currentModelIndex = 0;
+        var currentEntity = null;
+        const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
+        var surfaceMarker = document.querySelector('#surface-marker');
+        var rotationSlider = document.getElementById('rotationSlider');
+        var scaleSlider = document.getElementById('scaleSlider');
+
         scene.addEventListener('loaded', function () {
+            // Perbaikan hit-test-update
             scene.addEventListener('hit-test-update', function (evt) {
                 if (evt.detail.position) {
-                    surfaceMarker.object3D.position.copy(evt.detail.position);
-                    surfaceMarker.object3D.quaternion.copy(evt.detail.quaternion);
+                    surfaceMarker.setAttribute('position', evt.detail.position);
                     surfaceMarker.setAttribute('visible', true);
-                    
-                    // Tambahkan efek visual saat menemukan permukaan
-                    document.getElementById('reticle').style.borderColor = '#00ff00';
                 } else {
                     surfaceMarker.setAttribute('visible', false);
-                    document.getElementById('reticle').style.borderColor = 'white';
                 }
             });
 
@@ -92,6 +118,54 @@
                 newObject(evt);
             });
         });
+
+        document.querySelector('.controls').addEventListener('touchstart', function(e) {
+            e.stopPropagation();
+        }, true);
+
+        var modelAsset = document.querySelector('#model1');
+        modelAsset.addEventListener('error', function(e) {
+            console.error('Error loading model:', e);
+            createFallbackObject();
+        });
+
+        var autoRotate = true; // tambahkan variabel untuk kontrol rotasi otomatis
+
+        var autoRotateToggle = document.getElementById('autoRotateToggle');
+
+        var newObject = function(data) {
+            if (currentEntity) {
+                scene.removeChild(currentEntity);
+            }
+
+            var entity = data.detail;
+            entity.setAttribute('gltf-model', models[currentModelIndex]);
+            
+            entity.addEventListener('model-loaded', () => {
+                // Set skala awal
+                const currentScale = parseFloat(scaleSlider.value);
+                entity.object3D.scale.set(currentScale, currentScale, currentScale);
+            });
+
+            // Event listener untuk slider rotasi
+            rotationSlider.oninput = function() {
+                const rotation = parseFloat(this.value);
+                entity.object3D.rotation.y = THREE.Math.degToRad(rotation);
+            };
+
+            // Event listener untuk slider skala
+            scaleSlider.addEventListener('input', function(e) {
+                const scale = parseFloat(e.target.value);
+                entity.object3D.scale.set(scale, scale, scale);
+            });
+
+            scene.appendChild(entity);
+            currentEntity = entity;
+            currentModelIndex = (currentModelIndex + 1) % models.length;
+        }
+
+        // Hapus kode rotasi otomatis dan event listener yang tidak digunakan
+        autoRotateToggle.parentNode.remove(); // Hapus elemen kontrol auto-rotasi
     </script>
 </body>
 </html>
