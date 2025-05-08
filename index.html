@@ -1,278 +1,133 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>A-Frame / WebXR / AR / Hit Test dengan Hand Tracking</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="description" content="WebAR dengan Hand Tracking">
-    <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-master.min.js"></script>
-    <script src="https://unpkg.com/three@0.161.0/examples/jsm/webxr/XRHandMeshModel.js"></script>
-    <script src="https://unpkg.com/aframe-xr@3.3.0/dist/aframe-xr.min.js"></script>
-    <script>
-        AFRAME.registerComponent('ar-hit-test-handler', {
-            init: function () {
-                const sceneEl = this.el.sceneEl;
-                const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
-                let currentModelIndex = 0;
-                let currentEntity = null;
-                const statusDiv = document.getElementById('statusDiv'); // Pastikan statusDiv ada
-
-                sceneEl.addEventListener('ar-hit-test-select', (evt) => {
-                    const hitPosition = evt.detail.position;
-                    if (hitPosition) {
-                        if (currentEntity) {
-                            sceneEl.removeChild(currentEntity);
-                        }
-                        const entity = document.createElement('a-entity');
-                        entity.setAttribute('gltf-model', models[currentModelIndex]);
-                        entity.setAttribute('scale', '0.1 0.1 0.1');
-                        entity.setAttribute('shadow', 'cast: true; receive: true');
-                        entity.setAttribute('class', 'clickable');
-                        entity.setAttribute('position', hitPosition);
-                        sceneEl.appendChild(entity);
-                        currentEntity = entity;
-                        statusDiv.textContent = `Model ${currentModelIndex + 1} ditempatkan.`;
-                    } else {
-                        statusDiv.textContent = "Gagal menempatkan model.";
-                    }
-                });
-
-                document.getElementById('modelSwitcher').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    currentModelIndex = (currentModelIndex + 1) % models.length;
-                    if (currentEntity) {
-                        currentEntity.setAttribute('gltf-model', models[currentModelIndex]);
-                        statusDiv.textContent = `Model ${currentModelIndex + 1} dipilih.`;
-                    } else {
-                        statusDiv.textContent = "Tempatkan model terlebih dahulu.";
-                    }
-                });
-            }
-        });
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1620248257/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1620248257/camera_utils.js"></script>
+  <head>
+    <title>A-Frame / WebXR / AR / Hit Test</title>
+    <meta name="description" content="Hello, WebVR! - A-Frame">
+    <script src='./aframe-master.js'></script>
+    <script src='./three.xr.js'></script>
+    <script src='./aframe-xr.js'></script>
+    <script src='./hit-test.js'></script>
     <style>
-        body { margin: 0; overflow: hidden; touch-action: none; }
-        video { display: none; }
-        canvas#output_canvas {
+        .controls {
             position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            pointer-events: none;
-            z-index: 999;
-            background: transparent;
-        }
-        #modelSwitcher {
-            position: fixed;
-            bottom: 80px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 10px 20px;
-            background: rgba(0,0,0,0.5);
-            color: white;
-            border: none;
-            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
             z-index: 1000;
-            pointer-events: auto;
         }
-        .hit-test-area {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%;
-            height: calc(100% - 120px);
-            pointer-events: all; /* Mungkin tidak perlu jika hit test di handle oleh WebXR */
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
         }
-        #statusDiv {
-            position:fixed;bottom:20px;left:20px;color:white;background:rgba(0,0,0,0.5);padding:10px;z-index:999;
+        input[type="range"] {
+            width: 150px;
         }
     </style>
 </head>
 <body>
-    <div class="hit-test-area"></div>
-    <button id="modelSwitcher">Switch Model</button>
-    <video id="video" autoplay playsinline></video>
-    <canvas id="output_canvas"></canvas>
-    <div id="statusDiv">Memulai AR...</div>
-
-    <a-scene
-        webxr="optionalFeatures: hit-test, local-floor, bounded-floor, hand-tracking;"
-        ar-hit-test="target:#my-target; type: footprint;"
-        cursor="rayOrigin: mouse; fuse: false"
-        raycaster="objects: .clickable"
-        embedded
-        ar-hit-test-handler
-    >
-        <a-assets timeout="10000">
-            <a-asset-item id="model1" src="./model1.glb"></a-asset-item>
-            <a-asset-item id="model2" src="./model2.glb"></a-asset-item>
-            <a-asset-item id="model3" src="./model3.glb"></a-asset-item>
-            <a-asset-item id="model4" src="./model4.glb"></a-asset-item>
-            <a-asset-item id="model5" src="./model5.glb"></a-asset-item>
-            <a-asset-item id="model6" src="./model6.glb"></a-asset-item>
-            <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
-        </a-assets>
-        <a-entity id="my-target" visible="false">
-            <a-circle radius="0.1" color="#FF0000" rotation="-90 0 0"></a-circle>
-        </a-entity>
-
-        <a-entity camera position="0 1.6 0"></a-entity>
+    <a-scene hit-test>
+      <a-assets timeout="10000">
+        <a-asset-item id="model1" src="./model1.glb"></a-asset-item>
+        <a-asset-item id="model2" src="./model2.glb"></a-asset-item>
+        <a-asset-item id="model3" src="./model3.glb"></a-asset-item>
+        <a-asset-item id="model4" src="./model4.glb"></a-asset-item>
+        <a-asset-item id="model5" src="./model5.glb"></a-asset-item>
+        <a-asset-item id="model6" src="./model6.glb"></a-asset-item>
+        <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
+      </a-assets>
     </a-scene>
 
+    <div class="controls">
+        <div class="slider-container">
+            <label>Rotasi Y</label>
+            <input type="range" id="rotationSlider" min="0" max="360" value="0">
+        </div>
+        <div class="slider-container">
+            <label>Skala</label>
+            <input type="range" id="scaleSlider" min="0.1" max="3" step="0.1" value="1">
+        </div>
+    </div>
+
     <script>
-        const scene = AFRAME.scenes[0];
-        const videoElement = document.getElementById('video');
-        const canvasElement = document.getElementById('output_canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const statusDiv = document.getElementById('statusDiv');
+      var scene = AFRAME.scenes[0];
+      var currentModelIndex = 0;
+      var currentEntity = null;
+      const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
 
-        let arSessionActive = false;
-        let handTrackingActive = false;
-        let previousLandmarks = null;
-        let previousScale = null;
-        let currentEntity = null;
-        let handTracker = null;
+      var modelAsset = document.querySelector('#model1');
+      modelAsset.addEventListener('error', function(e) {
+        console.error('Error loading model:', e);
+        createFallbackObject();
+      });
 
-        function lerp(a, b, t) {
-            return a * (1 - t) + b * t;
+      var rotationSlider = document.getElementById('rotationSlider');
+      var scaleSlider = document.getElementById('scaleSlider');
+
+      var newObject = function(data) {
+        if (currentEntity) {
+          scene.removeChild(currentEntity);
         }
 
-        function smoothLandmarks(landmarks) {
-            if (!previousLandmarks) {
-                previousLandmarks = landmarks;
-                return landmarks;
-            }
-            return landmarks.map((lm, i) => {
-                const prev = previousLandmarks[i] || lm;
-                return {
-                    x: lerp(prev.x, lm.x, 0.3),
-                    y: lerp(prev.y, lm.y, 0.3),
-                    z: lerp(prev.z, lm.z, 0.3)
-                };
-            });
+        var entity = data.detail;
+        entity.setAttribute('gltf-model', models[currentModelIndex]);
+        entity.setAttribute('scale', '1 1 1');
+        entity.setAttribute('material', {
+          shader: 'standard',
+          fog: false
+        });     
+
+        scene.appendChild(entity);
+        currentEntity = entity;
+        
+        currentModelIndex = (currentModelIndex + 1) % models.length;
+
+        // Reset slider values
+        rotationSlider.value = 0;
+        scaleSlider.value = 1;
+      }
+
+      rotationSlider.addEventListener('input', function(e) {
+        if (currentEntity) {
+          currentEntity.setAttribute('rotation', `0 ${e.target.value} 0`);
+        }
+      });
+
+      scaleSlider.addEventListener('input', function(e) {
+        if (currentEntity) {
+          const scale = e.target.value;
+          currentEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+        }
+      });
+
+      function createFallbackObject(data) {
+        if (currentEntity) {
+          scene.removeChild(currentEntity);
         }
 
-        function updateObjectTransform(indexFinger, thumb) {
-            if (!currentEntity) return;
-            const distance = Math.hypot(indexFinger.x - thumb.x, indexFinger.y - thumb.y, indexFinger.z - thumb.z);
-            const scaleFactor = Math.min(distance * 5, 3.0); // Sesuaikan faktor skala
-            const newScale = 0.1 * scaleFactor;
-            const smoothedScale = lerp(previousScale || newScale, newScale, 0.2); // Sesuaikan faktor smoothing skala
-            previousScale = smoothedScale;
-
-            const dx = thumb.x - indexFinger.x;
-            const dy = thumb.y - indexFinger.y;
-            const dz = thumb.z - indexFinger.z;
-            const rx = Math.atan2(dy, dz) * 180 / Math.PI;
-            const ry = Math.atan2(dx, dz) * 180 / Math.PI;
-
-            currentEntity.setAttribute('rotation', `${rx} ${ry} 0`);
-            currentEntity.setAttribute('scale', `${smoothedScale} ${smoothedScale} ${smoothedScale}`);
-        }
-
-        function onResults(results) {
-            if (!arSessionActive || !handTrackingActive || !currentEntity) return;
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            if (results.multiHandLandmarks) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    const smoothed = smoothLandmarks(landmarks);
-                    drawConnectors(canvasCtx, smoothed, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
-                    drawLandmarks(canvasCtx, smoothed, { color: '#FF0000', lineWidth: 1 });
-                    if (smoothed[8] && smoothed[4]) {
-                        updateObjectTransform(smoothed[8], smoothed[4]);
-                    }
-                    previousLandmarks = smoothed; // Update previous landmarks di sini
-                }
-            }
-        }
-
-        async function initXRSession() {
-            try {
-                if (!navigator.xr) throw new Error("WebXR tidak tersedia");
-                const supported = await navigator.xr.isSessionSupported('immersive-ar');
-                if (!supported) throw new Error("AR tidak didukung");
-
-                const session = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['hit-test', 'local-floor', 'hand-tracking'],
-                    optionalFeatures: ['dom-overlay'],
-                    domOverlay: { root: document.body }
-                });
-
-                const gl = document.createElement('canvas').getContext('webgl', {
-                    xrCompatible: true,
-                    antialias: true,
-                    alpha: true,
-                    preserveDrawingBuffer: true
-                });
-                await gl.makeXRCompatible();
-                const glLayer = new XRWebGLLayer(session, gl);
-                await session.updateRenderState({ baseLayer: glLayer });
-
-                const refSpace = await session.requestReferenceSpace('local-floor');
-                xrSession = session;
-                xrRefSpace = refSpace;
-
-                session.addEventListener('end', () => {
-                    arSessionActive = false;
-                    handTrackingActive = false;
-                    if (handTracker) {
-                        handTracker.close();
-                        handTracker = null;
-                    }
-                    statusDiv.textContent = "AR dinonaktifkan";
-                });
-
-                arSessionActive = true;
-                handTrackingActive = true; // Tambahkan ini
-                statusDiv.textContent = "AR aktif. Arahkan kamera ke permukaan datar...";
-                await initializeHandTracking(); // Tambahkan await di sini
-
-                session.requestAnimationFrame(function onXRFrame(time, frame) {
-                    session.requestAnimationFrame(onXRFrame);
-                    if (!frame) return;
-
-                    const pose = frame.getViewerPose(refSpace);
-                    if (pose) {
-                        // Tidak perlu lagi hit test di setiap frame jika sudah ada ar-hit-test component
-                    }
-                });
-
-                return true;
-            } catch (error) {
-                statusDiv.textContent = "Error: " + error.message;
-                return false;
-            }
-        }
-
-        scene.addEventListener('enter-vr', async () => {
-            try {
-                const success = await initXRSession();
-                if (success) {
-                    canvasElement.style.display = "block";
-                }
-            } catch (error) {
-                console.error('Error saat masuk mode AR:', error);
-                statusDiv.textContent = "Error: " + error.message;
-            }
+        var entity = data.detail;
+        entity.setAttribute('geometry', {
+          primitive: 'box',
+          width: 0.1,
+          height: 0.1,
+          depth: 0.1
         });
-
-        // Hit test sekarang dihandle oleh komponen ar-hit-test-handler
-        // scene.addEventListener('click', () => { ... });
-
-        scene.addEventListener('exit-vr', () => {
-            arSessionActive = false;
-            handTrackingActive = false;
-            if (handTracker) {
-                handTracker.close();
-                handTracker = null;
-            }
-            statusDiv.textContent = "AR dinonaktifkan";
+        entity.setAttribute('material', {
+          color: 'red'
         });
+        scene.appendChild(entity);
+        currentEntity = entity;
+      }
+
+      scene.addEventListener('newAnchoredEntity', newObject);
     </script>
-</body>
+  </body>
 </html>
 
 
