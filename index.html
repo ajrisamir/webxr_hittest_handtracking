@@ -185,35 +185,6 @@
             }
         }
 
-        function initializeHandTracking() {
-            if (handTracker) handTracker.close();
-            handTracker = new Hands({
-                locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
-            });
-            handTracker.setOptions({
-                maxNumHands: 1,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.7, // Tingkatkan kepercayaan deteksi
-                minTrackingConfidence: 0.7,   // Tingkatkan kepercayaan pelacakan
-                selfieMode: false
-            });
-            handTracker.onResults(onResults);
-
-            const camera = new Camera(videoElement, {
-                onFrame: async () => {
-                    if (handTrackingActive) await handTracker.send({ image: videoElement });
-                },
-                width: 640,
-                height: 480,
-                facingMode: 'environment'
-            });
-            camera.start().then(() => {
-                statusDiv.textContent = "Pelacakan tangan aktif";
-            }).catch(err => {
-                statusDiv.textContent = "Error kamera: " + err.message;
-            });
-        }
-
         async function initXRSession() {
             try {
                 if (!navigator.xr) throw new Error("WebXR tidak tersedia");
@@ -251,8 +222,9 @@
                 });
 
                 arSessionActive = true;
+                handTrackingActive = true; // Tambahkan ini
                 statusDiv.textContent = "AR aktif. Arahkan kamera ke permukaan datar...";
-                initializeHandTracking(); // Aktifkan pelacakan tangan segera setelah sesi AR dimulai
+                await initializeHandTracking(); // Tambahkan await di sini
 
                 session.requestAnimationFrame(function onXRFrame(time, frame) {
                     session.requestAnimationFrame(onXRFrame);
@@ -298,3 +270,5 @@
     </script>
 </body>
 </html>
+
+
