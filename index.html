@@ -50,14 +50,21 @@
                         rotation="-90 0 0"
                         radius="0.15"
                         height="0.002"
-                        material="shader: flat; color: #ff0000; opacity: 0.8"
-                        animation="property: material.opacity; from: 0.8; to: 0.4; dur: 800; dir: alternate; loop: true">
+                        material="shader: flat; color: #00ff00; opacity: 0.5"
+                        animation="property: material.opacity; from: 0.7; to: 0.2; dur: 1000; dir: alternate; loop: true">
             </a-cylinder>
             <a-ring position="0 0.003 0"
                     rotation="-90 0 0"
                     radius-inner="0.14"
                     radius-outer="0.16"
-                    material="shader: flat; color: #ffffff; opacity: 1">
+                    material="shader: flat; color: #ffffff; opacity: 0.8"
+                    animation="property: scale; from: 1 1 1; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
+            </a-ring>
+            <a-ring position="0 0.002 0"
+                    rotation="-90 0 0"
+                    radius-inner="0.01"
+                    radius-outer="0.02"
+                    material="shader: flat; color: #ffffff; opacity: 0.8">
             </a-ring>
         </a-entity>
     </a-scene>
