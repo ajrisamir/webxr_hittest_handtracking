@@ -181,11 +181,16 @@
 
           const session = await navigator.xr.requestSession('immersive-ar', {
             requiredFeatures: ['hit-test', 'local-floor'],
-            optionalFeatures: ['dom-overlay'],
+            optionalFeatures: ['dom-overlay', 'hand-tracking'],
             domOverlay: { root: document.body }
           });
 
-          const gl = document.createElement('canvas').getContext('webgl', { xrCompatible: true });
+          const gl = document.createElement('canvas').getContext('webgl', { 
+            xrCompatible: true,
+            antialias: true,
+            alpha: true,
+            preserveDrawingBuffer: true
+          });
           await gl.makeXRCompatible();
           const glLayer = new XRWebGLLayer(session, gl);
           await session.updateRenderState({ baseLayer: glLayer });
@@ -194,10 +199,17 @@
           const viewerSpace = await session.requestReferenceSpace('viewer');
           const hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
 
+          // Store session and spaces globally
+          xrSession = session;
+          xrRefSpace = refSpace;
+          xrHitTestActive = true;
+
           session.requestAnimationFrame(function onXRFrame(time, frame) {
             session.requestAnimationFrame(onXRFrame);
+            if (!frame) return;
+
             const pose = frame.getViewerPose(refSpace);
-            if (pose) {
+            if (pose && hitTestSource) {
               const results = frame.getHitTestResults(hitTestSource);
               if (results.length > 0) {
                 const hit = results[0];
@@ -215,20 +227,18 @@
         }
       }
 
-      scene.addEventListener('enter-vr', async () => {
-        arSessionActive = await initXRSession();
-        if (arSessionActive) {
-          canvasElement.style.display = "block";
-          statusDiv.textContent = "AR aktif. Mencari permukaan...";
-        }
-      });
-
+      // Update the click event listener
       scene.addEventListener('click', () => {
-        if (!isModelPlaced && hitTestPosition) {
+        if (hitTestPosition) {
+          if (currentEntity) {
+            scene.removeChild(currentEntity);
+          }
+          
           const entity = document.createElement('a-entity');
           entity.setAttribute('gltf-model', models[currentModelIndex]);
           entity.setAttribute('scale', '0.1 0.1 0.1');
-          entity.setAttribute('position', hitTestPosition);
+          entity.setAttribute('shadow', 'cast: true; receive: true');
+          entity.setAttribute('position', `${hitTestPosition.x} ${hitTestPosition.y} ${hitTestPosition.z}`);
           entity.setAttribute('class', 'clickable');
           scene.appendChild(entity);
 
@@ -240,7 +250,10 @@
           previousLandmarks = null;
           isModelPlaced = true;
 
+          handTrackingActive = true;
           initializeHandTracking();
+          
+          statusDiv.textContent = `Model ${currentModelIndex + 1} ditempatkan.`;
         }
       });
 
