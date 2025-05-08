@@ -45,28 +45,115 @@
         </a-assets>
 
         <!-- Ubah surface marker -->
+        <!-- Surface marker dengan visual yang lebih jelas -->
         <a-entity id="surface-marker" visible="false">
-            <a-cylinder position="0 0 0"
-                        rotation="-90 0 0"
-                        radius="0.15"
-                        height="0.002"
-                        material="shader: flat; color: #00ff00; opacity: 0.5"
-                        animation="property: material.opacity; from: 0.7; to: 0.2; dur: 1000; dir: alternate; loop: true">
-            </a-cylinder>
-            <a-ring position="0 0.003 0"
-                    rotation="-90 0 0"
-                    radius-inner="0.14"
-                    radius-outer="0.16"
-                    material="shader: flat; color: #ffffff; opacity: 0.8"
-                    animation="property: scale; from: 1 1 1; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
+            <!-- Lingkaran utama -->
+            <a-circle
+                rotation="-90 0 0"
+                radius="0.15"
+                material="shader: flat; color: #00ff00; opacity: 0.5; transparent: true"
+                animation="property: material.opacity; from: 0.5; to: 0.2; dur: 1000; dir: alternate; loop: true">
+            </a-circle>
+            
+            <!-- Grid pattern untuk lebih jelas -->
+            <a-plane
+                rotation="-90 0 0"
+                width="0.3"
+                height="0.3"
+                material="shader: flat; src: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAOElEQVQYV2NkYGD4z4AAVDL///8/GGf///9gxv///0ESjCAGSAJZAkUBTACnBIgPEgAZgKwAbi0AmcELEYi8pN8AAAAASUVORK5CYII=); repeat: true; transparent: true; opacity: 0.3">
+            </a-plane>
+
+            <!-- Ring animasi -->
+            <a-ring
+                rotation="-90 0 0"
+                radius-inner="0.14"
+                radius-outer="0.15"
+                material="shader: flat; color: #ffffff"
+                animation="property: scale; from: 1 1 1; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
             </a-ring>
-            <a-ring position="0 0.002 0"
-                    rotation="-90 0 0"
-                    radius-inner="0.01"
-                    radius-outer="0.02"
-                    material="shader: flat; color: #ffffff; opacity: 0.8">
-            </a-ring>
+
+            <!-- Crosshair -->
+            <a-entity rotation="-90 0 0">
+                <a-plane width="0.01" height="0.05" material="shader: flat; color: white; transparent: true; opacity: 0.8"></a-plane>
+                <a-plane width="0.05" height="0.01" material="shader: flat; color: white; transparent: true; opacity: 0.8"></a-plane>
+            </a-entity>
         </a-entity>
+
+        <script>
+            scene.addEventListener('loaded', function () {
+                scene.addEventListener('hit-test-update', function (evt) {
+                    if (evt.detail.position) {
+                        surfaceMarker.setAttribute('position', evt.detail.position);
+                        surfaceMarker.setAttribute('visible', true);
+                        
+                        // Tambahkan rotasi acak untuk efek scanning
+                        surfaceMarker.setAttribute('animation__rotate', {
+                            property: 'rotation.y',
+                            from: 0,
+                            to: 360,
+                            dur: 5000,
+                            loop: true,
+                            easing: 'linear'
+                        });
+                    } else {
+                        surfaceMarker.setAttribute('visible', false);
+                    }
+                });
+
+                scene.addEventListener('newAnchoredEntity', function (evt) {
+                    console.log('newAnchoredEntity', evt.detail);
+                    newObject(evt);
+                });
+            });
+
+            document.querySelector('.controls').addEventListener('touchstart', function(e) {
+                e.stopPropagation();
+            }, true);
+
+            var modelAsset = document.querySelector('#model1');
+            modelAsset.addEventListener('error', function(e) {
+                console.error('Error loading model:', e);
+                createFallbackObject();
+            });
+
+            var autoRotate = true; // tambahkan variabel untuk kontrol rotasi otomatis
+
+            var autoRotateToggle = document.getElementById('autoRotateToggle');
+
+            var newObject = function(data) {
+                if (currentEntity) {
+                    scene.removeChild(currentEntity);
+                }
+
+                var entity = data.detail;
+                entity.setAttribute('gltf-model', models[currentModelIndex]);
+                
+                entity.addEventListener('model-loaded', () => {
+                    // Set skala awal
+                    const currentScale = parseFloat(scaleSlider.value);
+                    entity.object3D.scale.set(currentScale, currentScale, currentScale);
+                });
+
+                // Event listener untuk slider rotasi
+                rotationSlider.oninput = function() {
+                    const rotation = parseFloat(this.value);
+                    entity.object3D.rotation.y = THREE.Math.degToRad(rotation);
+                };
+
+                // Event listener untuk slider skala
+                scaleSlider.addEventListener('input', function(e) {
+                    const scale = parseFloat(e.target.value);
+                    entity.object3D.scale.set(scale, scale, scale);
+                });
+
+                scene.appendChild(entity);
+                currentEntity = entity;
+                currentModelIndex = (currentModelIndex + 1) % models.length;
+            }
+
+            // Hapus kode rotasi otomatis dan event listener yang tidak digunakan
+            autoRotateToggle.parentNode.remove(); // Hapus elemen kontrol auto-rotasi
+        </script>
     </a-scene>
 
     <div class="controls">
