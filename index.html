@@ -105,23 +105,55 @@
         var surfaceMarker = document.querySelector('#surface-marker');
         var rotationSlider = document.getElementById('rotationSlider');
         var scaleSlider = document.getElementById('scaleSlider');
-
+    
+        // Tambahkan THREE Mesh Marker
+        const markerGeometry = new THREE.RingGeometry(0.15, 0.2, 32);
+        const markerMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x33ccff, 
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.6
+        });
+        const meshMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+        meshMarker.rotation.x = -Math.PI / 2;
+        meshMarker.visible = false;
+    
         scene.addEventListener('loaded', function () {
-            // Perbaikan hit-test-update
+            // Tambahkan mesh marker ke scene
+            scene.object3D.add(meshMarker);
+    
             scene.addEventListener('hit-test-update', function (evt) {
                 if (evt.detail.position) {
+                    // Update posisi surface marker A-Frame
                     surfaceMarker.setAttribute('position', evt.detail.position);
                     surfaceMarker.setAttribute('visible', true);
+    
+                    // Update posisi THREE.js mesh marker
+                    meshMarker.position.copy(evt.detail.position);
+                    meshMarker.visible = true;
+    
+                    // Tambahkan animasi putar
+                    meshMarker.rotation.z += 0.02;
                 } else {
                     surfaceMarker.setAttribute('visible', false);
+                    meshMarker.visible = false;
                 }
             });
-
+    
             scene.addEventListener('newAnchoredEntity', function (evt) {
                 console.log('newAnchoredEntity', evt.detail);
                 newObject(evt);
             });
         });
+    
+        // Tambahkan animation loop untuk mesh marker
+        function animate() {
+            requestAnimationFrame(animate);
+            if (meshMarker.visible) {
+                meshMarker.rotation.z += 0.02;
+            }
+        }
+        animate();
 
         document.querySelector('.controls').addEventListener('touchstart', function(e) {
             e.stopPropagation();
