@@ -46,38 +46,40 @@
 
         <!-- Ubah surface marker -->
         <a-entity id="surface-marker" visible="false">
-            <!-- Lingkaran utama -->
+            <!-- Lingkaran utama dengan animasi pulse -->
             <a-cylinder position="0 0 0"
                         rotation="-90 0 0"
-                        radius="0.15"
+                        radius="0.25"
                         height="0.001"
-                        material="shader: flat; color: #33ccff; opacity: 0.6"
-                        animation="property: scale; from: 1 1 1; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
+                        material="shader: flat; color: #00ff00; opacity: 0.6"
+                        animation__scale="property: scale; from: 1 1 1; to: 1.4 1.4 1.4; dur: 1500; dir: alternate; loop: true"
+                        animation__opacity="property: material.opacity; from: 0.6; to: 0.2; dur: 1500; dir: alternate; loop: true">
             </a-cylinder>
             
-            <!-- Ring luar dengan animasi -->
-            <a-ring position="0 0.001 0"
+            <!-- Ring luar dengan animasi rotasi -->
+            <a-ring position="0 0.002 0"
                     rotation="-90 0 0"
-                    radius-inner="0.14"
-                    radius-outer="0.16"
+                    radius-inner="0.24"
+                    radius-outer="0.26"
                     material="shader: flat; color: #ffffff; opacity: 0.8"
-                    animation="property: rotation; to: -90 360 0; dur: 2000; easing: linear; loop: true">
+                    animation="property: rotation; to: -90 360 0; dur: 4000; easing: linear; loop: true">
             </a-ring>
             
-            <!-- Ring tengah statis -->
+            <!-- Ring tengah dengan animasi pulse -->
             <a-ring position="0 0.001 0"
                     rotation="-90 0 0"
-                    radius-inner="0.08"
-                    radius-outer="0.09"
-                    material="shader: flat; color: #33ccff; opacity: 0.9">
+                    radius-inner="0.12"
+                    radius-outer="0.14"
+                    material="shader: flat; color: #00ff00; opacity: 0.9"
+                    animation="property: scale; from: 0.8 0.8 0.8; to: 1.2 1.2 1.2; dur: 1000; dir: alternate; loop: true">
             </a-ring>
             
-            <!-- Titik pusat -->
-            <a-circle position="0 0.002 0"
+            <!-- Titik pusat dengan animasi opacity -->
+            <a-circle position="0 0.003 0"
                       rotation="-90 0 0"
-                      radius="0.02"
+                      radius="0.03"
                       material="shader: flat; color: #ffffff; opacity: 1"
-                      animation="property: material.opacity; from: 1; to: 0.5; dur: 1000; dir: alternate; loop: true">
+                      animation="property: material.opacity; from: 1; to: 0.3; dur: 800; dir: alternate; loop: true">
             </a-circle>
         </a-entity>
     </a-scene>
