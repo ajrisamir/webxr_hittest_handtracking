@@ -104,55 +104,65 @@
         var currentModelIndex = 0;
         var currentEntity = null;
         const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
-        var surfaceMarker = document.querySelector('#surface-marker');
-        var rotationSlider = document.getElementById('rotationSlider');
-        var scaleSlider = document.getElementById('scaleSlider');
-    
-        // Tambahkan THREE Mesh Marker
+        
+        // Buat mesh marker baru
         const markerGeometry = new THREE.RingGeometry(0.15, 0.2, 32);
         const markerMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x33ccff, 
+            color: 0x00ff00,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.6
+            opacity: 0.8
         });
         const meshMarker = new THREE.Mesh(markerGeometry, markerMaterial);
         meshMarker.rotation.x = -Math.PI / 2;
         meshMarker.visible = false;
-    
+        
+        // Tambah animasi pulse
+        const pulseGeometry = new THREE.RingGeometry(0.1, 0.12, 32);
+        const pulseMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.5
+        });
+        const pulseRing = new THREE.Mesh(pulseGeometry, pulseMaterial);
+        pulseRing.rotation.x = -Math.PI / 2;
+        meshMarker.add(pulseRing);
+
         scene.addEventListener('loaded', function () {
-            // Tambahkan mesh marker ke scene
             scene.object3D.add(meshMarker);
-    
+            
             scene.addEventListener('hit-test-update', function (evt) {
                 if (evt.detail.position) {
-                    // Update posisi surface marker A-Frame
-                    surfaceMarker.setAttribute('position', evt.detail.position);
-                    surfaceMarker.setAttribute('visible', true);
-    
-                    // Update posisi THREE.js mesh marker
+                    // Update mesh marker position
                     meshMarker.position.copy(evt.detail.position);
                     meshMarker.visible = true;
-    
-                    // Tambahkan animasi putar
-                    meshMarker.rotation.z += 0.02;
+                    
+                    // Animate pulse ring
+                    pulseRing.scale.x = pulseRing.scale.y = 
+                        1 + 0.5 * Math.sin(Date.now() * 0.003);
+                    
+                    // Rotate marker
+                    meshMarker.rotation.z += 0.01;
                 } else {
-                    surfaceMarker.setAttribute('visible', false);
                     meshMarker.visible = false;
                 }
             });
-    
+
             scene.addEventListener('newAnchoredEntity', function (evt) {
                 console.log('newAnchoredEntity', evt.detail);
                 newObject(evt);
             });
         });
-    
-        // Tambahkan animation loop untuk mesh marker
+
+        // Animation loop
         function animate() {
             requestAnimationFrame(animate);
             if (meshMarker.visible) {
-                meshMarker.rotation.z += 0.02;
+                // Pulse animation
+                pulseRing.material.opacity = 0.5 + 0.3 * Math.sin(Date.now() * 0.003);
+                // Rotation animation
+                meshMarker.rotation.z += 0.01;
             }
         }
         animate();
