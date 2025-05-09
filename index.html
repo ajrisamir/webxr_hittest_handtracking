@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>A-Frame / WebXR / AR / Hit Test</title>
+    <meta name="description" content="Hello, WebVR! - A-Frame">
+    <script src='./aframe-master.js'></script>
+    <script src='./three.xr.js'></script>
+    <script src='./aframe-xr.js'></script>
+    <script src='./hit-test.js'></script>
+    <style>
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+            pointer-events: auto;
+        }
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+        }
+        input[type="range"] {
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <a-scene hit-test="requiredFeatures: hit-test,dom-overlay; domOverlay: true">
+        <a-assets timeout="10000">
+            <a-asset-item id="model1" src="./model1.glb"></a-asset-item>
+            <a-asset-item id="model2" src="./model2.glb"></a-asset-item>
+            <a-asset-item id="model3" src="./model3.glb"></a-asset-item>
+            <a-asset-item id="model4" src="./model4.glb"></a-asset-item>
+            <a-asset-item id="model5" src="./model5.glb"></a-asset-item>
+            <a-asset-item id="model6" src="./model6.glb"></a-asset-item>
+            <a-asset-item id="model7" src="./model7.glb"></a-asset-item>
+        </a-assets>
+
+        <!-- Ubah surface marker -->
+        <a-entity id="surface-marker" visible="false">
+            <a-cylinder position="0 0 0"
+                        rotation="-90 0 0"
+                        radius="0.15"
+                        height="0.002"
+                        material="shader: flat; color: #ff0000; opacity: 0.8"
+                        animation="property: material.opacity; from: 0.8; to: 0.4; dur: 800; dir: alternate; loop: true">
+            </a-cylinder>
+            <a-ring position="0 0.003 0"
+                    rotation="-90 0 0"
+                    radius-inner="0.14"
+                    radius-outer="0.16"
+                    material="shader: flat; color: #ffffff; opacity: 1">
+            </a-ring>
+        </a-entity>
+    </a-scene>
+
+    <div class="controls">
+        <div class="slider-container">
+            <label>Rotasi Y</label>
+            <input type="range" id="rotationSlider" min="0" max="360" value="0">
+        </div>
+        <div class="slider-container">
+            <label>Skala</label>
+            <input type="range" id="scaleSlider" min="0.1" max="3" step="0.1" value="1">
+        </div>
+        <div class="slider-container">
+            <label>Auto Rotasi</label>
+            <input type="checkbox" id="autoRotateToggle" checked>
+        </div>
+    </div>
+
+    <script>
+        var scene = AFRAME.scenes[0];
+        var currentModelIndex = 0;
+        var currentEntity = null;
+        const models = ['#model1', '#model2', '#model3', '#model4', '#model5', '#model6', '#model7'];
+        var surfaceMarker = document.querySelector('#surface-marker');
+        var rotationSlider = document.getElementById('rotationSlider');
+        var scaleSlider = document.getElementById('scaleSlider');
+
+        scene.addEventListener('loaded', function () {
+            // Perbaikan hit-test-update
+            scene.addEventListener('hit-test-update', function (evt) {
+                if (evt.detail.position) {
+                    surfaceMarker.setAttribute('position', evt.detail.position);
+                    surfaceMarker.setAttribute('visible', true);
+                } else {
+                    surfaceMarker.setAttribute('visible', false);
+                }
+            });
+
+            scene.addEventListener('newAnchoredEntity', function (evt) {
+                console.log('newAnchoredEntity', evt.detail);
+                newObject(evt);
+            });
+        });
+
+        document.querySelector('.controls').addEventListener('touchstart', function(e) {
+            e.stopPropagation();
+        }, true);
+
+        var modelAsset = document.querySelector('#model1');
+        modelAsset.addEventListener('error', function(e) {
+            console.error('Error loading model:', e);
+            createFallbackObject();
+        });
+
+        var autoRotate = true; // tambahkan variabel untuk kontrol rotasi otomatis
+
+        var autoRotateToggle = document.getElementById('autoRotateToggle');
+
+        var newObject = function(data) {
+            if (currentEntity) {
+                scene.removeChild(currentEntity);
+            }
+
+            var entity = data.detail;
+            entity.setAttribute('gltf-model', models[currentModelIndex]);
+            
+            entity.addEventListener('model-loaded', () => {
+                // Set skala awal
+                const currentScale = parseFloat(scaleSlider.value);
+                entity.object3D.scale.set(currentScale, currentScale, currentScale);
+            });
+
+            // Event listener untuk slider rotasi
+            rotationSlider.oninput = function() {
+                const rotation = parseFloat(this.value);
+                entity.object3D.rotation.y = THREE.Math.degToRad(rotation);
+            };
+
+            // Event listener untuk slider skala
+            scaleSlider.addEventListener('input', function(e) {
+                const scale = parseFloat(e.target.value);
+                entity.object3D.scale.set(scale, scale, scale);
+            });
+
+            scene.appendChild(entity);
+            currentEntity = entity;
+            currentModelIndex = (currentModelIndex + 1) % models.length;
+        }
+
+        // Hapus kode rotasi otomatis dan event listener yang tidak digunakan
+        autoRotateToggle.parentNode.remove(); // Hapus elemen kontrol auto-rotasi
+    </script>
+</body>
+</html>
+
+
